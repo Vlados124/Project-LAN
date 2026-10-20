@@ -214,6 +214,8 @@ td .sub{color:var(--ink3);font-size:12px;max-width:34ch;white-space:nowrap;overf
 .log div{display:flex;gap:10px}.log .num{color:var(--ink3);font-size:12px;flex:none}
 .err{color:var(--lo);font-size:13px}
 .hint{font-size:12px;color:var(--ink3)}
+.msgs{display:flex;flex-direction:column;gap:6px}.msg summary{cursor:pointer;display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap}.msg .mt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+a.btn{text-decoration:none;color:inherit}
 .cpy{display:flex;gap:6px}.cpy input{flex:1;min-width:0}.cpy .btn{height:auto}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
@@ -498,7 +500,7 @@ function renderDrawer(){
      ${a?`<div class="ai"><div class="head">${scoreEl(l,true)}<div><b>${esc(a.verdict)}</b><span>Тип сигнала: ${esc(a.signal)}</span></div></div><div class="body">
        ${list("","Почему",a.reasons)}${list("ev","Подтверждено публикацией",a.evidence)}${list("as","Предположения, не подтверждены",a.assumptions)}${list("","Проверить вручную",a.risks)}</div></div>`
      :`<div class="row"><button class="btn pri" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample||!canWrite?"disabled":""}>${busy[l.id]?"Оцениваю…":"Оценить AI"}</button>${l.err?`<span class="err">${esc(l.err)}</span>`:""}</div>`}</div>`}
-    ${a||l.draft||!sample?`<div class="sec"><h4>Черновик первого сообщения <button class="btn sm" data-act="copy">Копировать</button></h4><div class="fld"><textarea id="d_draft" data-f="draft" style="min-height:140px" ${dis}>${esc(l.draft)}</textarea></div>${l.draftEdited?'<div class="hint" style="margin-top:4px">Отредактирован вами — при переоценке не перезапишется.</div>':""}</div>`:""}
+    ${msgSection(l,dis)}
     <div class="sec"><h4>Следующий шаг</h4><div class="grid2"><div class="fld" style="grid-column:span 2"><label for="d_ns">Что сделать</label><input id="d_ns" data-f="nextStep" value="${esc(l.nextStep)}" placeholder="Например: позвонить, уточнить дату корпоратива" ${dis}></div><div class="fld"><label for="d_nd">Когда</label><input id="d_nd" type="date" data-f="nextDate" value="${esc(l.nextDate)}" ${dis}></div></div></div>
     <div class="sec"><h4>Контактное лицо</h4><div class="grid2">
       <div class="fld" style="grid-column:1/-1"><label for="d_nm">ФИО</label><input id="d_nm" data-f="name" value="${esc(l.name)}" placeholder="Фамилия Имя Отчество" ${dis}></div>
@@ -510,13 +512,48 @@ function renderDrawer(){
      <div class="fld"><label for="d_rn">Ответ клиента, итоги звонков</label><textarea id="d_rn" data-f="replyNote" style="min-height:70px" ${dis}>${esc(l.replyNote)}</textarea></div></div>
     <div class="sec"><h4>Деньги</h4><div class="grid2"><div class="fld"><label for="d_am">Сумма сделки, ₽</label><input id="d_am" type="number" inputmode="numeric" data-f="amount" data-num value="${esc(l.amount)}" ${dis}></div><div class="fld"><label for="d_ce">Вознаграждение ожид., ₽</label><input id="d_ce" type="number" inputmode="numeric" data-f="commExp" data-num value="${esc(l.commExp)}" ${dis}></div><div class="fld"><label for="d_co">Вознаграждение подтв., ₽</label><input id="d_co" type="number" inputmode="numeric" data-f="commOk" data-num value="${esc(l.commOk)}" ${dis}></div></div></div>
     <div class="sec"><h4>Первоисточник</h4>${l.url?`<div class="link"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.url)}</a></div>`:""}${l.text?`<div class="src" style="margin-top:6px">${esc(l.text)}</div>`:'<div class="hint">Текста публикации нет.</div>'}</div>
+    ${l.messages?.length?`<div class="sec"><h4>Отправленные сообщения <span class="num" style="color:var(--ink2)">${l.messages.length}</span></h4><div class="msgs">${l.messages.slice().reverse().map(m=>`<details class="msg"><summary><span class="chip">${m.ch==="email"?"Почта":"Telegram"}</span><span class="num">${ftime(m.t)}</span><span class="mt">${esc(m.subject||m.to||"")}</span><span style="color:var(--ink3)">${esc(who(m.by))}</span></summary><div class="src" style="margin-top:6px">${m.to?`Кому: ${esc(m.to)}\n\n`:""}${esc(m.text)}</div></details>`).join("")}</div></div>`:""}
     ${l.log?.length?`<div class="sec"><h4>История</h4><div class="log">${l.log.slice().reverse().map(e=>`<div><span class="num">${ftime(e.t)}</span><span>${esc(ST[e.s]||e.s)}</span>${e.by?`<span style="color:var(--ink3)">— ${esc(who(e.by))}</span>`:""}</div>`).join("")}</div></div>`:""}
     ${canWrite?`<div class="sec"><h4>Опасная зона</h4><div class="row">${l._confirmDel?`<span class="err">Удалить лида навсегда?</span><button class="btn sm no" data-act="delyes" data-id="${l.id}">Да, удалить</button><button class="btn sm" data-act="delno">Отмена</button>`:`<button class="btn sm ghost" style="color:var(--lo)" data-act="del">Удалить лида</button>`}</div></div>`:""}
   </div>`;
 }
-function openLead(id){openId=id;renderDrawer();setTimeout(()=>$("#drawer .db")?.scrollTo(0,0),0)}
+function openLead(id){openId=id;snd=null;renderDrawer();setTimeout(()=>$("#drawer .db")?.scrollTo(0,0),0)}
 
 /* ---------- actions ---------- */
+let snd=null;
+const tgNum=p=>{let d=String(p||"").replace(/\D/g,"");if(d.length===11&&d[0]==="8")d="7"+d.slice(1);if(d.length===10)d="7"+d;return d.length>=11?d:""};
+function msgSection(l,dis){
+  const tg=tgNum(l.phone),st=snd&&snd.id===l.id?snd.mode:"";
+  let act;
+  if(st==="confirm")act=`<span>Отправить письмо на <b>${esc(l.email)}</b>?</span><button class="btn pri" data-act="emailyes">Да, отправить</button><button class="btn ghost" data-act="sndno">Отмена</button>`;
+  else if(st==="sending")act=`<button class="btn pri" disabled>Отправляю…</button>`;
+  else if(st==="tg")act=`<span class="hint" style="flex-basis:100%">Текст скопирован. Вставьте его в открывшийся чат (⌘V) и отправьте.</span><button class="btn ok" data-act="tgdone">Я отправил(а) в Telegram</button><button class="btn ghost" data-act="sndno">Не отправил</button>`;
+  else act=`<button class="btn pri" data-act="email" ${l.email&&canWrite?"":"disabled"}>Отправить на почту</button>`
+    +(tg?`<a class="btn" href="https://t.me/+${tg}" target="_blank" rel="noopener noreferrer" data-act="tg">Открыть в Telegram</a>`:`<button class="btn" disabled>Открыть в Telegram</button>`)
+    +`<button class="btn ghost" data-act="copy">Копировать</button>`
+    +(!l.email||!tg?`<span class="hint" style="flex-basis:100%">${!l.email?"Нет email в карточке — почта недоступна. ":""}${!tg?"Нет телефона — Telegram недоступен.":""}</span>`:"");
+  return`<div class="sec"><h4>Сообщение клиенту</h4>
+    <div class="fld"><label for="d_subj">Тема письма</label><input id="d_subj" data-f="subject" value="${esc(l.subject??"Корпоративный киберспортивный турнир для ваших сотрудников")}" ${dis}></div>
+    <div class="fld" style="margin-top:8px"><label for="d_draft">Текст</label><textarea id="d_draft" data-f="draft" style="min-height:160px" placeholder="Здравствуйте! …" ${dis}>${esc(l.draft)}</textarea></div>
+    <div class="row" style="margin-top:10px">${act}</div></div>`;
+}
+async function sendEmail(id){
+  const l=L(id),text=$("#d_draft").value.trim(),subject=$("#d_subj").value.trim();
+  if(!text){snd=null;renderDrawer();toast("Напишите текст письма");return}
+  if(text!==(l.draft||"")||subject!==(l.subject||""))await upd(id,{draft:text,subject,draftEdited:true});
+  snd={id,mode:"sending"};renderDrawer();
+  let msg="";
+  try{const {data,error}=await sb.functions.invoke("send-email",{body:{leadId:id,to:l.email,subject,text}});
+    if(error){msg=error.message;try{const j=await error.context?.json?.();if(j?.error)msg=j.error}catch(_){}}
+    else if(data?.error)msg=data.error;
+    else if(data?.patch){const x=L(id);if(x)Object.assign(x,data.patch)}
+  }catch(e){msg=e.message||String(e)}
+  snd=null;renderDrawer();renderMain();renderRail();
+  toast(msg?"Не отправлено: "+msg:"Письмо отправлено на "+l.email);
+}
+async function logMsg(id,m){const l=L(id),now=Date.now();const o={messages:[...(l.messages||[]),{t:now,by:myId,...m}]};
+  if(["new","scored","approved"].includes(l.status)){o.status="sent";o.log=[...(l.log||[]),{t:now,s:"sent",by:myId}];o.sentAt=l.sentAt||now;o.approvedAt=l.approvedAt||now}
+  await upd(id,o)}
 async function setSt(id,v){
   const l=L(id);if(!l||l.status===v)return;
   const o={status:v,log:[...(l.log||[]),{t:Date.now(),s:v,...(myId?{by:myId}:{})}]};
@@ -678,6 +715,11 @@ document.addEventListener("click",async e=>{
       else if(act==="st")await setSt(id,b.dataset.v);
       else if(act==="score")score(id).catch(er=>toast(er.code==="rate_limited"?"Лимит запросов к AI — попробуйте позже":"AI недоступен"));
       else if(act==="batch")runBatch();
+      else if(act==="email"){snd={id,mode:"confirm"};renderDrawer()}
+      else if(act==="emailyes")await sendEmail(id);
+      else if(act==="sndno"){snd=null;renderDrawer()}
+      else if(act==="tg"){const t=$("#d_draft").value;try{await navigator.clipboard.writeText(t)}catch(_){}snd={id,mode:"tg"};setTimeout(renderDrawer,50)}
+      else if(act==="tgdone"){const l=L(id);await logMsg(id,{ch:"telegram",to:l.phone,text:$("#d_draft")?.value||l.draft||""});snd=null;renderDrawer();toast("Отмечено: отправлено в Telegram")}
       else if(act==="copy"){const t=$("#d_draft");try{await navigator.clipboard.writeText(t.value);toast("Черновик скопирован")}catch(_){t.focus();t.select();toast("Выделено — нажмите Ctrl+C")}}
       else if(act==="copyf"){const t=document.getElementById(b.dataset.for);if(t?.value){try{await navigator.clipboard.writeText(t.value);toast("Скопировано: "+t.value)}catch(_){t.focus();t.select();toast("Выделено — нажмите ⌘C")}}}
       else if(act==="logout"){await sb.auth.signOut()}
