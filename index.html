@@ -331,9 +331,9 @@ const ftime=t=>t?new Date(t).toLocaleString("ru-RU",{day:"2-digit",month:"2-digi
 function lsGet(k){try{return localStorage.getItem("lancrm_"+k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem("lancrm_"+k,v)}catch(e){}}
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
-async function dbPatch(id,o){const l=L(id);if(l)Object.assign(l,o);const {error}=await sb.rpc("patch_lead",{p_id:id,p_patch:o});if(error)throw error}
-async function dbSet(id,d){const {error}=await sb.from("leads").upsert({id,data:d});if(error)throw error;const i=leads.findIndex(l=>l.id===id);if(i<0)leads.push({id,...d});else leads[i]={id,...d}}
-async function dbDel(id){const {error}=await sb.from("leads").delete().eq("id",id);if(error)throw error;leads=leads.filter(l=>l.id!==id)}
+async function dbPatch(id,o){const l=L(id);if(l)Object.assign(l,o);const {error}=await sb.rpc("patch_lead",{p_id:id,p_patch:o});if(error)throw error;saveCache()}
+async function dbSet(id,d){const {error}=await sb.from("leads").upsert({id,data:d});if(error)throw error;const i=leads.findIndex(l=>l.id===id);if(i<0)leads.push({id,...d});else leads[i]={id,...d};saveCache()}
+async function dbDel(id){const {error}=await sb.from("leads").delete().eq("id",id);if(error)throw error;leads=leads.filter(l=>l.id!==id);saveCache()}
 async function cfgSet(d){const {error}=await sb.from("config").upsert({id:"lan",data:d});if(error)throw error;cfg=d}
 const upd=(id,o)=>dbPatch(id,{...o,updatedAt:Date.now(),...(myId?{updatedBy:myId}:{})});
 function who(id){if(!id)return"";if(id===myId)return"вы";return String(id).split("@")[0]}
@@ -374,19 +374,34 @@ async function init(){
 async function loadTeam(){try{const {data}=await sb.from("members").select("email");TEAM=(data||[]).map(r=>r.email).sort()}catch(e){}
   const seen=new Set(TEAM.map(e=>e.toLowerCase()));leads.forEach(l=>[l.owner,l.createdBy].forEach(e=>{if(e&&!seen.has(e.toLowerCase())){seen.add(e.toLowerCase());TEAM.push(e)}}));
   if(myId&&!seen.has(myId.toLowerCase()))TEAM.unshift(myId);renderMain();renderDrawer()}
+let cacheT=null;
+function saveCache(){clearTimeout(cacheT);cacheT=setTimeout(()=>{try{if(myId&&loaded)localStorage.setItem("lan_cache_"+myId,JSON.stringify({t:Date.now(),cfg,leads:leads.map(({_confirmDel,...l})=>l)}))}catch(e){}},800)}
+function clearCache(){try{Object.keys(localStorage).filter(k=>k.startsWith("lan_cache_")).forEach(k=>localStorage.removeItem(k))}catch(e){}}
 function showLogin(){db=null;leads=[];loaded=false;document.body.classList.add("auth");$("#login").hidden=false;$("#drawerWrap").hidden=true;setTimeout(()=>$("#l_em")?.focus(),0)}
 async function start(ses){
   if(db)return;db=sb;myId=ses.user.email;
   document.body.classList.remove("auth");$("#login").hidden=true;render();
-  const onRow=p=>{if(p.eventType==="DELETE"){leads=leads.filter(l=>l.id!==p.old.id)}else{const r=p.new,i=leads.findIndex(l=>l.id===r.id),v={id:r.id,...r.data};if(i<0)leads.push(v);else{const keep=leads[i]._confirmDel;leads[i]=v;if(keep)v._confirmDel=keep}}softRender()};
+  const onRow=p=>{if(p.eventType==="DELETE"){leads=leads.filter(l=>l.id!==p.old.id)}else{const r=p.new,i=leads.findIndex(l=>l.id===r.id),v={id:r.id,...r.data};if(i<0)leads.push(v);else{const keep=leads[i]._confirmDel;leads[i]=v;if(keep)v._confirmDel=keep}}softRender();saveCache()};
   sb.channel("lan").on("postgres_changes",{event:"*",schema:"public",table:"leads"},onRow)
     .on("postgres_changes",{event:"*",schema:"public",table:"config"},p=>{if(p.new?.id==="lan"){cfg=p.new.data||{desc:""};if(view==="settings")softRender()}}).subscribe();
-  let all=[],from=0;
-  while(true){const {data,error}=await sb.from("leads").select("id,data").range(from,from+999);if(error){banner="Ошибка базы: "+error.message;break}all=all.concat(data);if(data.length<1000)break;from+=1000}
-  leads=all.map(r=>({id:r.id,...r.data}));loaded=true;
+  // Копия базы в этом браузере: лиды видны сразу, пока идёт обновление
+  const CK="lan_cache_"+myId;let cached=false;
+  try{const c=JSON.parse(localStorage.getItem(CK)||"null");if(c?.leads?.length){leads=c.leads;if(c.cfg)cfg=c.cfg;loaded=true;cached=true;banner="";render()}}catch(e){}
+  // Загрузка маленькими порциями: крупные ответы от зарубежных серверов у части провайдеров зависают
+  let all=[],from=0,done=false;const STEP=8;
+  const slow=setTimeout(()=>{if(!done){banner=cached?"Обновляю базу — сеть отвечает медленно. Показана копия от последнего входа.":"Сеть отвечает медленно, загружаю лидов по частям… Если долго — включите VPN.";softRender()}},6000);
+  for(let tries=0;;){
+    const {data,error}=await sb.from("leads").select("id,data").order("id").range(from,from+STEP-1);
+    if(error){if(++tries<4){await new Promise(r=>setTimeout(r,1500*tries));continue}banner="Не удалось загрузить базу: "+error.message+". Обновите страницу или включите VPN.";break}
+    tries=0;all=all.concat(data);
+    if(!cached){leads=all.map(r=>({id:r.id,...r.data}));loaded=true;softRender()}
+    if(data.length<STEP){done=true;break}from+=STEP}
+  clearTimeout(slow);
+  if(done){const fresh=all.map(r=>({id:r.id,...r.data})),map=new Map(leads.map(l=>[l.id,l]));
+    leads=fresh.map(l=>{const o=map.get(l.id);if(o?._confirmDel)l._confirmDel=1;return l});loaded=true;banner=""}
   loadTeam();
-  const c=await sb.from("config").select("data").eq("id","lan").maybeSingle();cfg=c.data?.data||{desc:""};
-  render();
+  try{const c=await sb.from("config").select("data").eq("id","lan").maybeSingle();if(!c.error)cfg=c.data?.data||{desc:""}}catch(e){}
+  render();saveCache();
 }
 
 /* ---------- render ---------- */
@@ -881,7 +896,7 @@ document.addEventListener("click",async e=>{
       else if(act==="tgdone"){const l=L(id);await logMsg(id,{ch:"telegram",to:l.phone,text:$("#d_draft")?.value||l.draft||""});snd=null;renderDrawer();toast("Отмечено: отправлено в Telegram")}
       else if(act==="copy"){const t=$("#d_draft");try{await navigator.clipboard.writeText(t.value);toast("Черновик скопирован")}catch(_){t.focus();t.select();toast("Выделено — нажмите Ctrl+C")}}
       else if(act==="copyf"){const t=document.getElementById(b.dataset.for);if(t?.value){try{await navigator.clipboard.writeText(t.value);toast("Скопировано: "+t.value)}catch(_){t.focus();t.select();toast("Выделено — нажмите ⌘C")}}}
-      else if(act==="logout"){await sb.auth.signOut()}
+      else if(act==="logout"){clearCache();await sb.auth.signOut()}
       else if(act==="mscore"){const l=L(id);await upd(id,{ai:{...(l.ai||{}),score:+b.dataset.v,signal:l.ai?.signal||"ручная оценка"},status:l.status==="new"?"scored":l.status})}
       else if(act==="pw"){const v=$("#c_pw").value;if(v.length<8){toast("Пароль — минимум 8 символов");return}const {error}=await sb.auth.updateUser({password:v});toast(error?"Ошибка: "+error.message:"Пароль изменён");$("#c_pw").value=""}
       else if(act==="tpledit"){const i=+b.dataset.i;tplEdit=i<0?{i:-1,name:"Новый шаблон",subject:"",text:"{приветствие}\n\n"}:{i,...tpls()[i]};renderMain()}
