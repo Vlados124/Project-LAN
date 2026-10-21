@@ -385,12 +385,12 @@ function showLogin(){db=null;leads=[];loaded=false;document.body.classList.add("
 async function start(ses){
   if(db)return;db=sb;myId=ses.user.email;
   document.body.classList.remove("auth");$("#login").hidden=true;render();
-  const onRow=p=>{if(p.eventType==="DELETE"){leads=leads.filter(l=>l.id!==p.old.id)}else{const r=p.new,i=leads.findIndex(l=>l.id===r.id),v={id:r.id,...r.data};if(i<0)leads.push(v);else{const keep=leads[i]._confirmDel;leads[i]=v;if(keep)v._confirmDel=keep}}softRender();saveCache()};
+  const onRow=p=>{if(p.eventType==="DELETE"||p.new?.data?.archived){leads=leads.filter(l=>l.id!==(p.old?.id||p.new?.id))}else{const r=p.new,i=leads.findIndex(l=>l.id===r.id),v={id:r.id,...r.data};if(i<0)leads.push(v);else{const keep=leads[i]._confirmDel;leads[i]=v;if(keep)v._confirmDel=keep}}softRender();saveCache()};
   sb.channel("lan").on("postgres_changes",{event:"*",schema:"public",table:"leads"},onRow)
     .on("postgres_changes",{event:"*",schema:"public",table:"config"},p=>{if(p.new?.id==="lan"){cfg=p.new.data||{desc:""};if(view==="settings")softRender()}}).subscribe();
   // Копия базы в этом браузере: лиды видны сразу, пока идёт обновление
   const CK="lan_cache_"+myId;let cached=false;
-  try{const c=JSON.parse(localStorage.getItem(CK)||"null");if(c?.leads?.length){leads=c.leads;if(c.cfg)cfg=c.cfg;loaded=true;cached=true;banner="";render()}}catch(e){}
+  try{const c=JSON.parse(localStorage.getItem(CK)||"null");if(c?.leads?.length){leads=c.leads.filter(l=>!l.archived);if(c.cfg)cfg=c.cfg;loaded=true;cached=true;banner="";render()}}catch(e){}
   // Загрузка маленькими порциями: крупные ответы от зарубежных серверов у части провайдеров зависают
   let all=[],from=0,done=false;const STEP=8;
   const slow=setTimeout(()=>{if(!done){banner=cached?"Обновляю базу — сеть отвечает медленно. Показана копия от последнего входа.":"Сеть отвечает медленно, загружаю лидов по частям… Если долго — включите VPN.";softRender()}},6000);
@@ -398,10 +398,10 @@ async function start(ses){
     const {data,error}=await sb.from("leads").select("id,data").order("id").range(from,from+STEP-1);
     if(error){if(++tries<4){await new Promise(r=>setTimeout(r,1500*tries));continue}banner="Не удалось загрузить базу: "+error.message+". Обновите страницу или включите VPN.";break}
     tries=0;all=all.concat(data);
-    if(!cached){leads=all.map(r=>({id:r.id,...r.data}));loaded=true;softRender()}
+    if(!cached){leads=all.filter(r=>!r.data?.archived).map(r=>({id:r.id,...r.data}));loaded=true;softRender()}
     if(data.length<STEP){done=true;break}from+=STEP}
   clearTimeout(slow);
-  if(done){const fresh=all.map(r=>({id:r.id,...r.data})),map=new Map(leads.map(l=>[l.id,l]));
+  if(done){const fresh=all.filter(r=>!r.data?.archived).map(r=>({id:r.id,...r.data})),map=new Map(leads.map(l=>[l.id,l]));
     leads=fresh.map(l=>{const o=map.get(l.id);if(o?._confirmDel)l._confirmDel=1;return l});loaded=true;banner=""}
   loadTeam();
   try{const c=await sb.from("config").select("data").eq("id","lan").maybeSingle();if(!c.error)cfg=c.data?.data||{desc:""}}catch(e){}
