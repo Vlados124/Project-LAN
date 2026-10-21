@@ -262,6 +262,8 @@ td.nw{white-space:nowrap}
 .empty{background:var(--surface);border:1px dashed var(--line2);border-radius:14px;padding:36px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
 .empty h3{margin:0;font-family:var(--f-disp);font-weight:500;font-size:17px}
 .empty p{margin:0;color:var(--ink3);max-width:46ch}
+.tbtn{all:unset;cursor:pointer;margin-left:10px;font-weight:600;color:var(--accent-soft);text-decoration:underline}
+.tbtn:focus-visible{outline:2px solid var(--accent-soft)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:13px;z-index:60;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
 .banner{background:var(--lo-soft);color:var(--lo);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px}
 .progress{height:4px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:6px}.progress i{display:block;height:100%;background:var(--accent);transition:width .3s}
@@ -330,7 +332,8 @@ const fdate=s=>{if(!s)return"";const [y,m,d]=s.split("-");return`${d}.${m}.${y.s
 const ftime=t=>t?new Date(t).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
 function lsGet(k){try{return localStorage.getItem("lancrm_"+k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem("lancrm_"+k,v)}catch(e){}}
-function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+let toastAct=null;
+function toast(t,act){const el=$("#toast");toastAct=act||null;el.innerHTML=esc(t)+(act?` <button class="tbtn" data-act="toastact">${esc(act.label)}</button>`:"");el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true;toastAct=null},act?7000:2600)}
 async function dbPatch(id,o){const l=L(id);if(l)Object.assign(l,o);const {error}=await sb.rpc("patch_lead",{p_id:id,p_patch:o});if(error)throw error;saveCache()}
 async function dbSet(id,d){const {error}=await sb.from("leads").upsert({id,data:d});if(error)throw error;const i=leads.findIndex(l=>l.id===id);if(i<0)leads.push({id,...d});else leads[i]={id,...d};saveCache()}
 async function dbDel(id){const {error}=await sb.from("leads").delete().eq("id",id);if(error)throw error;leads=leads.filter(l=>l.id!==id);saveCache()}
@@ -595,7 +598,7 @@ function renderDrawer(){
   w.hidden=false;
   const a=l.ai,s=l.status,dis=canWrite?"":"disabled";
   const idx=FLOW.indexOf(s);
-  const steps=FLOW.slice(2).map(k=>`<button data-act="st" data-id="${l.id}" data-v="${k}" class="${s===k?"cur":idx>FLOW.indexOf(k)?"done":""}">${ST[k]}</button>`).join("")
+  const steps=[["new","Новая"]].map(([k,t])=>`<button data-act="st" data-id="${l.id}" data-v="${k}" class="${s===k||s==="scored"?"cur":"done"}">${t}</button>`).join("")+FLOW.slice(2).map(k=>`<button data-act="st" data-id="${l.id}" data-v="${k}" class="${s===k?"cur":idx>FLOW.indexOf(k)?"done":""}">${ST[k]}</button>`).join("")
     +`<button data-act="st" data-id="${l.id}" data-v="lost" class="bad ${s==="lost"?"cur":""}">Отказ</button>`;
   const list=(cls,t,arr)=>arr?.length?`<div><div class="k">${t}</div><ul class="${cls}">${arr.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:"";
   $("#drawer").dataset.id=l.id;
@@ -607,7 +610,8 @@ function renderDrawer(){
   <div class="db">
     ${(()=>{const dd=dupsOf(l,l.id);return dd.length?`<div class="warnbox"><b>Возможный дубль</b>${dd.slice(0,3).map(d=>`<span>• <a data-open="${d.l.id}">${esc(d.l.company||d.l.name||"Без названия")}</a> — совпадает ${d.why} · ${esc(ST[d.l.status]||"")}</span>`).join("")}</div>`:""})()}
     ${s==="new"||s==="scored"?`<div class="row"><button class="btn ok" data-act="st" data-id="${l.id}" data-v="approved" ${dis}>Одобрить в работу</button><button class="btn no" data-act="st" data-id="${l.id}" data-v="rejected" ${dis}>Отклонить</button></div>`
-     :`<div class="sec"><h4>Этап</h4><div class="stepper">${steps}</div></div>`}
+     :""}
+    <div class="sec"><h4>Этап ${!["new","scored"].includes(s)?`<button class="btn sm ghost" data-act="st" data-id="${l.id}" data-v="new" style="margin-left:auto;text-transform:none;letter-spacing:0" ${dis}>Вернуть в «Проверку»</button>`:""}</h4><div class="stepper">${steps}</div><div class="hint" style="margin-top:6px">Нажмите на любой этап, чтобы перевести лида туда — вперёд или назад.</div></div>
     ${contactSection(l,dis)}
     ${!sample?`<div class="sec"><h4>Оценка лида</h4><div class="row">${scoreEl(l,true)}<div class="seg">${[["Горячий",80],["Тёплый",55],["Холодный",20]].map(([t,n])=>`<button data-act="mscore" data-v="${n}" class="${a?.score===n?"on":""}" ${dis}>${t}</button>`).join("")}</div><div class="fld" style="width:90px"><input id="d_sc" type="number" min="0" max="100" inputmode="numeric" value="${a?.score??""}" placeholder="0–100" aria-label="Оценка 0–100" ${dis}></div></div>
      <div class="fld" style="margin-top:10px"><label for="d_vd">Почему такая оценка</label><input id="d_vd" value="${esc(a?.verdict)}" placeholder="Например: крупная компания, просят турнир на 1000 человек" ${dis}></div>
@@ -628,7 +632,7 @@ function renderDrawer(){
     <div class="sec"><h4>Деньги</h4><div class="grid2"><div class="fld"><label for="d_am">Сумма сделки, ₽</label><input id="d_am" type="number" inputmode="numeric" data-f="amount" data-num value="${esc(l.amount)}" ${dis}></div><div class="fld"><label for="d_ce">Вознаграждение ожид., ₽</label><input id="d_ce" type="number" inputmode="numeric" data-f="commExp" data-num value="${esc(l.commExp)}" ${dis}></div><div class="fld"><label for="d_co">Вознаграждение подтв., ₽</label><input id="d_co" type="number" inputmode="numeric" data-f="commOk" data-num value="${esc(l.commOk)}" ${dis}></div></div></div>
     <div class="sec"><h4>Первоисточник</h4>${l.url?`<div class="link"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.url)}</a></div>`:""}${l.text?`<div class="src" style="margin-top:6px">${esc(l.text)}</div>`:'<div class="hint">Текста публикации нет.</div>'}</div>
     ${l.messages?.length?`<div class="sec"><h4>Отправленные сообщения <span class="num" style="color:var(--ink2)">${l.messages.length}</span></h4><div class="msgs">${l.messages.slice().reverse().map(m=>`<details class="msg"><summary><span class="chip">${m.ch==="email"?"Почта":"Telegram"}</span><span class="num">${ftime(m.t)}</span><span class="mt">${esc(m.subject||m.to||"")}</span><span style="color:var(--ink3)">${esc(who(m.by))}</span></summary><div class="src" style="margin-top:6px">${m.to?`Кому: ${esc(m.to)}\n\n`:""}${esc(m.text)}</div></details>`).join("")}</div></div>`:""}
-    ${l.log?.length?`<div class="sec"><h4>История</h4><div class="log">${l.log.slice().reverse().map(e=>`<div><span class="num">${ftime(e.t)}</span><span>${e.r?"Ответ: "+esc(RESP[e.r]||e.r):esc(ST[e.s]||e.s)}</span>${e.by?`<span style="color:var(--ink3)">— ${esc(who(e.by))}</span>`:""}</div>`).join("")}</div></div>`:""}
+    ${l.log?.length?`<div class="sec"><h4>История</h4><div class="log">${l.log.slice().reverse().map(e=>`<div><span class="num">${ftime(e.t)}</span><span>${e.r?"Ответ: "+esc(RESP[e.r]||e.r):esc(ST[e.s]||e.s)}${e.undo?" (отмена)":""}</span>${e.by?`<span style="color:var(--ink3)">— ${esc(who(e.by))}</span>`:""}</div>`).join("")}</div></div>`:""}
     ${canWrite?`<div class="sec"><h4>Опасная зона</h4><div class="row">${l._confirmDel?`<span class="err">Удалить лида навсегда?</span><button class="btn sm no" data-act="delyes" data-id="${l.id}">Да, удалить</button><button class="btn sm" data-act="delno">Отмена</button>`:`<button class="btn sm ghost" style="color:var(--lo)" data-act="del">Удалить лида</button>`}</div></div>`:""}
   </div>`;
 }
@@ -720,14 +724,19 @@ async function sendEmail(id){
 async function logMsg(id,m){const l=L(id),now=Date.now();const o={messages:[...(l.messages||[]),{t:now,by:myId,...m}]};
   o.lastTouchAt=now;stagePatch(l,"sent",o,now);
   await upd(id,o)}
-async function setSt(id,v){
+const SNAP_KEYS=["status","approvedAt","sentAt","repliedAt","qualifiedAt","dealAt","wonAt"];
+async function setSt(id,v,opts){
   const l=L(id);if(!l||l.status===v)return;
+  const prev={};SNAP_KEYS.forEach(k=>prev[k]=l[k]??null);
   if(v==="won")setTimeout(()=>notify(id,"won"),500);
-  const o={status:v,log:[...(l.log||[]),{t:Date.now(),s:v,...(myId?{by:myId}:{})}]};
-  if(STAMP[v]&&!l[STAMP[v]])o[STAMP[v]]=Date.now();
-  if(v==="approved"&&!l.approvedAt)o.approvedAt=Date.now();
-  await upd(id,o);
-  toast(`${l.company||"Лид"} → ${ST[v]}`);
+  const now=Date.now(),o={status:v,log:[...(l.log||[]),{t:now,s:v,...(myId?{by:myId}:{}),...(opts?.undo?{undo:1}:{})}]};
+  const ti=RANK.indexOf(v);
+  if(ti>=2)for(const k of RANK.slice(2,ti+1))if(STAMP[k]&&!l[STAMP[k]])o[STAMP[k]]=now;
+  // Откат назад по воронке: снимаем отметки этапов, до которых лид теперь не дошёл
+  if(ti>=0)for(const k of RANK.slice(Math.max(ti+1,2)))if(STAMP[k]&&l[STAMP[k]])o[STAMP[k]]=null;
+  await upd(id,o);render();
+  if(opts?.undo)toast(`Отменено: ${l.company||"лид"} снова «${ST[v]}»`);
+  else toast(`${l.company||"Лид"} → ${ST[v]}`,{label:"Отменить",fn:async()=>{const x=L(id);if(!x)return;const r={...prev};const back=r.status;delete r.status;await upd(id,r);await setSt(id,back,{undo:1})}});
 }
 function prompt_(l){
   return`Ты помогаешь менеджеру по продажам Project LAN (корпоративные киберспортивные турниры и игровые мероприятия для сотрудников) в России.
@@ -888,6 +897,7 @@ document.addEventListener("click",async e=>{
       else if(act==="st")await setSt(id,b.dataset.v);
       else if(act==="score")score(id).catch(er=>toast(er.code==="rate_limited"?"Лимит запросов к AI — попробуйте позже":"AI недоступен"));
       else if(act==="batch")runBatch();
+      else if(act==="toastact"){const a=toastAct;$("#toast").hidden=true;toastAct=null;if(a)await a.fn()}
       else if(act==="touch")await addTouch(id,b.dataset.v);
       else if(act==="resp")await setResp(id,b.dataset.v);
       else if(act==="email"){snd={id,mode:"confirm"};renderDrawer()}
