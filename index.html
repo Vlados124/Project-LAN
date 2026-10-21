@@ -49,6 +49,17 @@ a{color:var(--accent)}
 .search input{width:100%;height:36px;border:1px solid var(--line);background:var(--sunk);border-radius:9px;padding:0 34px 0 12px}
 .search kbd{position:absolute;right:8px;top:8px;font:11px var(--f-num);color:var(--ink3);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
 .spacer{flex:1}
+.scope{flex:none}.scope button{white-space:nowrap}
+@media (max-width:820px){.scope button[data-scope="none"]{display:none}}
+@media (max-width:560px){.scope{display:none}}
+.own{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);white-space:nowrap}
+.ava{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:600 10px var(--f-ui);text-transform:uppercase;flex:none}
+.warnbox{background:var(--mid-soft);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px}
+.warnbox a{cursor:pointer}
+.tpls{display:flex;flex-direction:column;gap:10px}
+.tpl{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+.tpl .b{flex:1;min-width:0}.tpl .b b{display:block}.tpl .b div{font-size:12.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tgok{display:flex;gap:8px;align-items:center;color:var(--hi);font-weight:500}
 .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line2);background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-weight:500}
 .btn:hover{background:var(--sunk)}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -267,6 +278,7 @@ body.auth .shell,body.auth .top .btn{display:none}
 
 <header class="top">
   <div class="logo"><i>LAN</i><span>Project LAN</span> <small>CRM</small></div>
+  <div class="seg scope" id="scopeSeg" role="group" aria-label="Чьи лиды показывать"><button data-scope="all">Все</button><button data-scope="mine">Мои</button><button data-scope="none">Без ответств.</button></div>
   <div class="search"><input id="q" type="search" placeholder="Поиск: компания, контакт, текст…" autocomplete="off"><kbd>/</kbd></div>
   <div class="spacer"></div>
   <button class="btn ghost" data-act="import" title="Импорт из Google Таблицы">
@@ -304,7 +316,8 @@ const ICON={
 
 let sb=null,db=null,sample=null,dl=true,myId=null,canWrite=true,leads=[],cfg={desc:""},loaded=false;
 let view=lsGet("view")||"queue",q="",openId=null,busy={},banner="",pend={main:false,drawer:false};
-let F={st:"",src:"",seg:"",resp:"",ct:""},sort={k:"createdAt",d:-1},qSeg="toreview",batch=null,dragId=null,imp=null;
+let TEAM=[],scope=lsGet("scope")||"all",tgState=null,dupForce=false,tplEdit=null;
+let F={st:"",src:"",seg:"",resp:"",ct:"",own:""},sort={k:"createdAt",d:-1},qSeg="toreview",batch=null,dragId=null,imp=null;
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -336,8 +349,17 @@ function touchesOf(l){return[...(l.touches||[]),...(l.messages||[]).map(m=>({t:m
 function lastTouch(l){const a=touchesOf(l);return a[a.length-1]}
 function chIcons(l){const set=new Set(touchesOf(l).map(x=>x.ch));return set.size?`<span class="chs" title="${[...set].map(k=>CH[k]).join(", ")}">${["email","messenger","call"].filter(k=>set.has(k)).map(k=>ico(k)).join("")}</span>`:""}
 function respChip(l){return l.resp?`<span class="chip resp" style="color:${RCOL[l.resp]}"><span class="dot"></span><span style="color:var(--ink2)">${RESP[l.resp]}${l.resp==="refused"&&l.lossReason?" · "+esc(l.lossReason):""}</span></span>`:""}
+const initials=e=>{const n=String(e||"").split("@")[0].replace(/[^a-zа-яё0-9]/gi," ").trim().split(/\s+/);return((n[0]||"?")[0]+(n[1]?n[1][0]:(n[0]||"")[1]||"")).toUpperCase()};
+function ownEl(l,full){return l.owner?`<span class="own" title="Ответственный: ${esc(l.owner)}"><span class="ava">${esc(initials(l.owner))}</span>${full?esc(who(l.owner)):""}</span>`:(full?'<span class="own" style="color:var(--ink3)">не назначен</span>':"")}
 function stChip(s){return`<span class="chip" style="color:${SCOL[s]}"><span class="dot"></span><span style="color:var(--ink2)">${ST[s]||s}</span></span>`}
-function match(l){if(!q)return true;const s=q.toLowerCase();return[l.company,l.name,l.phone,l.email,l.contact,l.text,l.url,l.replyNote,l.nextStep,l.source,l.segment].some(v=>String(v||"").toLowerCase().includes(s))}
+const nPhone=p=>{const d=tgNum(p);return d.length>=11?d.slice(-10):""};
+const nMail=m=>String(m||"").trim().toLowerCase();
+const nCo=c=>String(c||"").toLowerCase().replace(/[«»"']/g,"").replace(/\b(ооо|ао|пао|зао|ип|оао)\b/g,"").replace(/\s+/g," ").trim();
+function dupsOf(x,exceptId){const ph=nPhone(x.phone),em=nMail(x.email),co=nCo(x.company);
+  return leads.filter(l=>l.id!==exceptId&&((ph&&nPhone(l.phone)===ph)||(em&&nMail(l.email)===em)||(co.length>2&&!/частное лицо/.test(co)&&nCo(l.company)===co)))
+   .map(l=>({l,why:[ph&&nPhone(l.phone)===ph?"телефон":"",em&&nMail(l.email)===em?"email":"",co.length>2&&nCo(l.company)===co?"компания":""].filter(Boolean).join(", ")}))}
+function inScope(l){return scope==="mine"?l.owner===myId:scope==="none"?!l.owner:true}
+function match(l){if(!inScope(l))return false;if(!q)return true;const s=q.toLowerCase();return[l.company,l.name,l.phone,l.email,l.contact,l.text,l.url,l.replyNote,l.nextStep,l.source,l.segment].some(v=>String(v||"").toLowerCase().includes(s))}
 
 /* ---------- init ---------- */
 async function init(){
@@ -349,6 +371,9 @@ async function init(){
   sb.auth.onAuthStateChange((ev,ses)=>{if(ev==="SIGNED_OUT")showLogin();else if(ses&&!db)start(ses)});
   session?start(session):showLogin();
 }
+async function loadTeam(){try{const {data}=await sb.from("members").select("email");TEAM=(data||[]).map(r=>r.email).sort()}catch(e){}
+  const seen=new Set(TEAM.map(e=>e.toLowerCase()));leads.forEach(l=>[l.owner,l.createdBy].forEach(e=>{if(e&&!seen.has(e.toLowerCase())){seen.add(e.toLowerCase());TEAM.push(e)}}));
+  if(myId&&!seen.has(myId.toLowerCase()))TEAM.unshift(myId);renderMain();renderDrawer()}
 function showLogin(){db=null;leads=[];loaded=false;document.body.classList.add("auth");$("#login").hidden=false;$("#drawerWrap").hidden=true;setTimeout(()=>$("#l_em")?.focus(),0)}
 async function start(ses){
   if(db)return;db=sb;myId=ses.user.email;
@@ -359,6 +384,7 @@ async function start(ses){
   let all=[],from=0;
   while(true){const {data,error}=await sb.from("leads").select("id,data").range(from,from+999);if(error){banner="Ошибка базы: "+error.message;break}all=all.concat(data);if(data.length<1000)break;from+=1000}
   leads=all.map(r=>({id:r.id,...r.data}));loaded=true;
+  loadTeam();
   const c=await sb.from("config").select("data").eq("id","lan").maybeSingle();cfg=c.data?.data||{desc:""};
   render();
 }
@@ -367,13 +393,14 @@ async function start(ses){
 function counts(){
   const t=today();
   return{
-    queue:leads.filter(l=>l.status==="new"||l.status==="scored").length,
-    board:leads.filter(l=>ACTIVE.includes(l.status)).length,
-    all:leads.length,
-    tasks:leads.filter(l=>ACTIVE.includes(l.status)&&l.nextDate&&l.nextDate<=t).length
+    queue:leads.filter(l=>inScope(l)&&(l.status==="new"||l.status==="scored")).length,
+    board:leads.filter(l=>inScope(l)&&ACTIVE.includes(l.status)).length,
+    all:leads.filter(inScope).length,
+    tasks:leads.filter(l=>inScope(l)&&ACTIVE.includes(l.status)&&l.nextDate&&l.nextDate<=t).length
   };
 }
-function renderRail(){
+function renderScope(){document.querySelectorAll("#scopeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.scope===scope))}
+function renderRail(){renderScope();
   const c=counts();
   const items=[["queue","Проверка",c.queue,"hot"],["board","Воронка",c.board],["all","Все лиды",c.all],["tasks","Дела",c.tasks,"warn"],null,["metrics","Метрики"],["settings","Настройки"]];
   $("#rail").innerHTML=items.map(it=>it?`<button data-view="${it[0]}" class="${view===it[0]?"on":""}"><svg viewBox="0 0 24 24">${ICON[it[0]]}</svg>${it[1]}${it[2]!=null&&loaded?`<span class="cnt ${it[2]&&it[3]?it[3]:""}">${it[2]}</span>`:""}</button>`:"<hr>").join("")
@@ -413,7 +440,7 @@ function vQueue(){
   return head+'<div class="qlist">'+list.map(l=>`<div class="qrow" data-open="${l.id}">
     ${scoreEl(l,true)}
     <div style="min-width:0"><h3>${esc(l.company||"Компания не указана")}</h3>${l.name||l.phone?`<div class="hint" style="margin-top:2px">${esc([l.name,l.phone].filter(Boolean).join(" · "))}</div>`:""}
-      <div class="meta"><span class="chip">${esc(l.source||"—")}</span><span class="chip">${esc(l.segment||"—")}</span>${l.ai?.signal?`<span class="chip">${esc(l.ai.signal)}</span>`:""}${respChip(l)}${chIcons(l)}</div>
+      <div class="meta"><span class="chip">${esc(l.source||"—")}</span><span class="chip">${esc(l.segment||"—")}</span>${l.ai?.signal?`<span class="chip">${esc(l.ai.signal)}</span>`:""}${respChip(l)}${chIcons(l)}${ownEl(l,true)}</div>
       <p class="why">${esc(l.ai?.verdict||(busy[l.id]?"AI оценивает…":l.err||(l.text||"").slice(0,200)))}</p></div>
     <div class="side">${l.ai||!sample?`<button class="btn sm ok" data-act="st" data-id="${l.id}" data-v="approved">Одобрить</button><button class="btn sm no" data-act="st" data-id="${l.id}" data-v="rejected">Отклонить</button>`:`<button class="btn sm" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample?"disabled":""}>${busy[l.id]?"Оцениваю…":"Оценить AI"}</button>`}</div>
   </div>`).join("")+"</div>";
@@ -431,7 +458,7 @@ function vBoard(){
       <div class="t"><b>${esc(l.company||"Без названия")}</b>${scoreEl(l)}</div>
       ${l.nextStep||l.nextDate?`<div class="ns ${l.nextDate&&l.nextDate<t&&ACTIVE.includes(s)?"late":""}">${l.nextDate?`<span class="num">${fdate(l.nextDate)}</span>`:""}<span>${esc(l.nextStep||"")}</span></div>`:(ACTIVE.includes(s)?'<div class="ns" style="color:var(--ink3)">Нет следующего шага</div>':"")}
       ${l.resp||touchesOf(l).length?`<div class="ft">${respChip(l)}${chIcons(l)}${lastTouch(l)?`<span class="num">${fdate(new Date(lastTouch(l).t).toISOString().slice(0,10))}</span>`:""}</div>`:""}
-      <div class="ft"><span>${esc(l.name||l.segment||"")}</span>${l.amount?`<span class="money">${rub(l.amount)}</span>`:""}</div>
+      <div class="ft">${ownEl(l)}<span>${esc(l.name||l.segment||"")}</span>${l.amount?`<span class="money">${rub(l.amount)}</span>`:""}</div>
     </article>`).join(""):'<div class="empty-col">Перетащите карточку сюда</div>'}</div></section>`}).join("");
   return`<div class="ph"><div><h1>Воронка</h1><p>Перетаскивайте карточки между этапами. Клик открывает лида целиком.</p></div></div><div class="board">${cols}</div>`;
 }
@@ -440,16 +467,16 @@ function vBoard(){
 function vAll(){
   if(!leads.length)return emptyAll();
   let list=leads.filter(l=>match(l)&&(!F.st||l.status===F.st)&&(!F.src||l.source===F.src)&&(!F.seg||l.segment===F.seg)
-    &&(!F.resp||(F.resp==="none"?!l.resp:l.resp===F.resp))&&(!F.ct||(F.ct==="no"?!touchesOf(l).length:F.ct==="any"?touchesOf(l).length:touchesOf(l).some(x=>x.ch===F.ct))));
-  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>l.nextDate||"9999",touch:l=>lastTouch(l)?.t||0,resp:l=>["agreed","interest","noanswer","refused"].indexOf(l.resp)>>>0,amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0}[sort.k];
+    &&(!F.own||(F.own==="none"?!l.owner:l.owner===F.own))&&(!F.resp||(F.resp==="none"?!l.resp:l.resp===F.resp))&&(!F.ct||(F.ct==="no"?!touchesOf(l).length:F.ct==="any"?touchesOf(l).length:touchesOf(l).some(x=>x.ch===F.ct))));
+  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>l.nextDate||"9999",touch:l=>lastTouch(l)?.t||0,owner:l=>(l.owner||"~").toLowerCase(),resp:l=>["agreed","interest","noanswer","refused"].indexOf(l.resp)>>>0,amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0}[sort.k];
   list.sort((a,b)=>{const x=key(a),y=key(b);return(x<y?-1:x>y?1:0)*sort.d});
   const opt=(arr,v,lbl)=>`<option value="">${lbl}</option>`+arr.map(([k,t])=>`<option value="${esc(k)}" ${v===k?"selected":""}>${esc(t)}</option>`).join("");
   const srcs=[...new Set(leads.map(l=>l.source).filter(Boolean))],segs=[...new Set(leads.map(l=>l.segment).filter(Boolean))];
   const th=(k,t,c="")=>`<th data-sort="${k}" class="${c}">${t}${sort.k===k?(sort.d>0?" ↑":" ↓"):""}</th>`;
   return`<div class="ph"><div><h1>Все лиды</h1><p>${list.length} из ${leads.length}. Сортировка по клику на заголовок.</p></div><div class="act"><button class="btn" data-act="export" ${dl?"":"disabled"}>Выгрузить CSV</button></div></div>
-  <div class="filters"><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select><select class="f" id="fct" data-filter="ct">${opt([["no","Ещё не связывались"],["any","Связывались"],["email","Связывались по почте"],["messenger","В мессенджере"],["call","Звонили"]],F.ct,"Связь: любая")}</select><select class="f" id="fresp" data-filter="resp">${opt([["none","Без ответа (не отмечен)"],...Object.entries(RESP)],F.resp,"Ответ: любой")}</select>${F.st||F.src||F.seg||F.ct||F.resp?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
-  <div class="tw"><table><thead><tr>${th("company","Компания")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
-  ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(l.company||"—")}</div><div class="sub">${esc([l.name,l.phone].filter(Boolean).join(" · ")||l.contact||l.segment||"")}</div></td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="10" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
+  <div class="filters"><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select><select class="f" id="fct" data-filter="ct">${opt([["no","Ещё не связывались"],["any","Связывались"],["email","Связывались по почте"],["messenger","В мессенджере"],["call","Звонили"]],F.ct,"Связь: любая")}</select><select class="f" id="fown" data-filter="own">${opt([["none","Без ответственного"],...TEAM.map(e=>[e,e===myId?e+" (вы)":e])],F.own,"Ответственный: все")}</select><select class="f" id="fresp" data-filter="resp">${opt([["none","Без ответа (не отмечен)"],...Object.entries(RESP)],F.resp,"Ответ: любой")}</select>${F.st||F.src||F.seg||F.ct||F.resp||F.own?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
+  <div class="tw"><table><thead><tr>${th("company","Компания")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}${th("owner","Ответств.")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
+  ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(l.company||"—")}</div><div class="sub">${esc([l.name,l.phone].filter(Boolean).join(" · ")||l.contact||l.segment||"")}</div></td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td>${ownEl(l,true)}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="11" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
   </tbody></table></div>`;
 }
 
@@ -459,7 +486,7 @@ function vTasks(){
   const t=today(),wk=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
   const act=leads.filter(l=>ACTIVE.includes(l.status)&&match(l));
   const g=[["late","Просрочено",act.filter(l=>l.nextDate&&l.nextDate<t)],["","Сегодня",act.filter(l=>l.nextDate===t)],["","Ближайшие 7 дней",act.filter(l=>l.nextDate>t&&l.nextDate<=wk)],["","Позже",act.filter(l=>l.nextDate>wk)],["","Без даты следующего шага",act.filter(l=>!l.nextDate)]];
-  const row=l=>`<div class="trow" data-open="${l.id}"><span class="d">${l.nextDate?fdate(l.nextDate):"—"}</span><div class="s"><b>${esc(l.company||"Без названия")}</b><div>${esc(l.nextStep||"Шаг не записан")}</div></div>${stChip(l.status)}</div>`;
+  const row=l=>`<div class="trow" data-open="${l.id}"><span class="d">${l.nextDate?fdate(l.nextDate):"—"}</span><div class="s"><b>${esc(l.company||"Без названия")}</b><div>${esc(l.nextStep||"Шаг не записан")}</div></div><div class="row" style="gap:8px;flex-wrap:nowrap">${ownEl(l)}${stChip(l.status)}</div></div>`;
   const body=g.filter(x=>x[2].length).map(([c,h,a])=>`<div class="grp ${c}"><h2>${h} <span class="num">${a.length}</span></h2>${a.sort((x,y)=>(x.nextDate||"")<(y.nextDate||"")?-1:1).map(row).join("")}</div>`).join("");
   return`<div class="ph"><div><h1>Дела</h1><p>Следующие шаги по лидам в работе. Дату и шаг задают в карточке лида.</p></div></div>`+(body||'<div class="empty"><h3>Нет лидов в работе</h3><p>Одобрите находки в «Проверке» — они появятся здесь.</p></div>');
 }
@@ -506,7 +533,26 @@ function respPanel(){
 }
 
 /* Настройки */
+function tgPanel(){
+  const st=tgState;
+  let body;
+  if(!st)body='<p class="hint">Проверяю подключение…</p>';
+  else if(st.connected)body=`<div class="tgok">${ico("messenger")} Подключено: ${esc(st.chat||"чат")} ${st.bot?`<span class="hint">· бот @${esc(st.bot)}</span>`:""}</div>
+    <p class="hint" style="margin:8px 0 12px">В чат приходят: новые лиды, ответы «Интерес / Согласие / Отказ», закрытые сделки, назначение ответственного. Каждый день в 9:00 — сводка просроченных дел и дел на сегодня.</p>
+    <div class="row"><button class="btn" data-act="tgtest">Прислать сводку сейчас</button><button class="btn ghost" style="color:var(--lo)" data-act="tgoff">Отключить</button></div>`;
+  else body=`<ol class="hint" style="margin:0 0 12px;padding-left:18px;line-height:1.7">
+      <li>В Telegram откройте <b>@BotFather</b> → <span class="num">/newbot</span> → придумайте имя, например «Project LAN CRM». Скопируйте токен, который он пришлёт.</li>
+      <li>Создайте чат команды (или используйте существующий) и добавьте туда бота${st.bot?` <b>@${esc(st.bot)}</b>`:""}.</li>
+      <li>Напишите в этот чат любое сообщение, например <span class="num">/start${st.bot?"@"+esc(st.bot):""}</span>.</li>
+      <li>Вставьте токен ниже и нажмите «Подключить».</li></ol>
+    <div class="row"><div class="fld" style="flex:1;min-width:220px"><input id="tg_tok" placeholder="${st.hasToken?"Токен уже сохранён — можно оставить пустым":"123456789:AAH…"}" autocomplete="off"></div><button class="btn pri" data-act="tgsetup" ${canWrite?"":"disabled"}>Подключить</button></div>
+    ${st.msg?`<p class="${st.err?"err":"hint"}" style="margin:8px 0 0">${esc(st.msg)}</p>`:""}`;
+  return`<div class="panel"><h3>Уведомления в Telegram</h3>${body}</div>`;
+}
+async function tgCall(type,extra){const {data,error}=await sb.functions.invoke("notify",{body:{type,...(extra||{})}});if(error){let m=error.message;try{const j=await error.context?.json?.();if(j?.error)m=j.error}catch(_){}throw new Error(m)}return data}
+async function tgLoad(){try{tgState=await tgCall("status")}catch(e){tgState={connected:false,msg:"Не удалось проверить: "+e.message,err:1}}if(view==="settings")renderMain()}
 function vSettings(){
+  if(!tgState&&sb)tgLoad();
   return`<div class="ph"><div><h1>Настройки</h1></div></div>
   <div class="panel"><h3>Описание Project LAN</h3><p class="hint" style="margin:-6px 0 10px">Общая шпаргалка для команды: форматы, игры, города, условия, кейсы с corp.projectlan.ru. Пригодится для писем и для AI-оценки, если её подключим.</p>
    <div class="fld"><textarea id="c_desc" style="min-height:180px" ${canWrite?"":"disabled"}>${esc(cfg.desc)}</textarea></div>
@@ -516,6 +562,10 @@ function vSettings(){
    <div class="panel"><h3>Выгрузка</h3><p class="hint" style="margin:-6px 0 12px">Все лиды одним CSV-файлом — открывается в Excel и Google Таблицах.</p><button class="btn" data-act="export" ${dl&&leads.length?"":"disabled"}>Скачать CSV</button></div>
   </div>
   <div style="height:14px"></div>
+  <div class="panel"><h3>Шаблоны писем</h3><p class="hint" style="margin:-6px 0 12px">Вставляются в карточке лида в один клик. Подстановки: <span class="num">{приветствие}</span> — «Здравствуйте, Имя Отчество!», <span class="num">{компания}</span>, <span class="num">{имя}</span>. Текст в [квадратных скобках] — напоминание заполнить вручную.</p>
+   ${tplEdit?`<div class="tpls"><div class="fld"><label for="t_name">Название</label><input id="t_name" value="${esc(tplEdit.name)}"></div><div class="fld"><label for="t_subj">Тема</label><input id="t_subj" value="${esc(tplEdit.subject)}"></div><div class="fld"><label for="t_text">Текст</label><textarea id="t_text" style="min-height:200px">${esc(tplEdit.text)}</textarea></div><div class="row"><button class="btn pri" data-act="tplsave">Сохранить шаблон</button><button class="btn ghost" data-act="tplcancel">Отмена</button></div></div>`
+   :`<div class="tpls">${tpls().map((t,i)=>`<div class="tpl"><div class="b"><b>${esc(t.name)}</b><div>${esc(t.subject)}</div></div><button class="btn sm" data-act="tpledit" data-i="${i}" ${canWrite?"":"disabled"}>Изменить</button><button class="btn sm ghost" style="color:var(--lo)" data-act="tpldel" data-i="${i}" ${canWrite?"":"disabled"}>Удалить</button></div>`).join("")}</div><div class="row" style="margin-top:10px"><button class="btn" data-act="tpledit" data-i="-1" ${canWrite?"":"disabled"}>Добавить шаблон</button></div>`}</div>
+  ${tgPanel()}
   <div class="panel"><h3>Мой пароль</h3><div class="row"><div class="fld" style="flex:1;min-width:200px"><input id="c_pw" type="password" autocomplete="new-password" placeholder="Новый пароль, минимум 8 символов"></div><button class="btn" data-act="pw">Сменить</button></div></div>
   <div class="panel"><h3>Горячие клавиши</h3><div class="hint" style="line-height:1.9"><span class="num">/</span> — поиск · <span class="num">N</span> — новый лид · <span class="num">Esc</span> — закрыть карточку</div>
   <p class="hint" style="margin-top:10px">Каждый контакт с лидом отмечайте в карточке — почта, мессенджер или звонок — и ставьте ответ. Так метрики покажут, какой канал работает. Храните только компанию и роль из публичных источников, без лишних персональных данных.</p></div>`;
@@ -535,9 +585,11 @@ function renderDrawer(){
   $("#drawer").dataset.id=l.id;
   $("#drawer").innerHTML=`
   <div class="dh"><div class="ttl"><input class="name" id="d_company" data-f="company" value="${esc(l.company)}" placeholder="Название компании" ${dis}>
+    <div class="row" style="margin-top:6px;gap:6px"><label for="d_own" class="hint">Ответственный</label><select id="d_own" class="f" data-f="owner" ${dis}><option value="">— не назначен —</option>${TEAM.map(e=>`<option value="${esc(e)}" ${l.owner===e?"selected":""}>${esc(e===myId?e+" (вы)":e)}</option>`).join("")}${l.owner&&!TEAM.includes(l.owner)?`<option selected value="${esc(l.owner)}">${esc(l.owner)}</option>`:""}</select>${l.owner!==myId&&canWrite?`<button class="btn sm ghost" data-act="takeme">Взять себе</button>`:""}</div>
     <div class="meta">${stChip(s)}<span class="chip">${esc(l.source||"—")}</span><span class="chip">${esc(l.segment||"—")}</span>${l.createdAt?`<span class="chip num">${ftime(l.createdAt)}</span>`:""}</div>${l.updatedAt?`<div class="hint" style="margin-top:6px">Изменено ${ftime(l.updatedAt)}${l.updatedBy?" · "+esc(who(l.updatedBy)):""}${l.createdBy?" · добавил(а) "+esc(who(l.createdBy)):""}</div>`:l.createdBy?`<div class="hint" style="margin-top:6px">Добавил(а) ${esc(who(l.createdBy))}</div>`:""}</div>
     <button class="btn sm ghost" data-act="close" aria-label="Закрыть">✕</button></div>
   <div class="db">
+    ${(()=>{const dd=dupsOf(l,l.id);return dd.length?`<div class="warnbox"><b>Возможный дубль</b>${dd.slice(0,3).map(d=>`<span>• <a data-open="${d.l.id}">${esc(d.l.company||d.l.name||"Без названия")}</a> — совпадает ${d.why} · ${esc(ST[d.l.status]||"")}</span>`).join("")}</div>`:""})()}
     ${s==="new"||s==="scored"?`<div class="row"><button class="btn ok" data-act="st" data-id="${l.id}" data-v="approved" ${dis}>Одобрить в работу</button><button class="btn no" data-act="st" data-id="${l.id}" data-v="rejected" ${dis}>Отклонить</button></div>`
      :`<div class="sec"><h4>Этап</h4><div class="stepper">${steps}</div></div>`}
     ${contactSection(l,dis)}
@@ -548,7 +600,7 @@ function renderDrawer(){
        ${list("","Почему",a.reasons)}${list("ev","Подтверждено публикацией",a.evidence)}${list("as","Предположения, не подтверждены",a.assumptions)}${list("","Проверить вручную",a.risks)}</div></div>`
      :`<div class="row"><button class="btn pri" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample||!canWrite?"disabled":""}>${busy[l.id]?"Оцениваю…":"Оценить AI"}</button>${l.err?`<span class="err">${esc(l.err)}</span>`:""}</div>`}</div>`}
     ${msgSection(l,dis)}
-    <div class="sec"><h4>Следующий шаг</h4><div class="grid2"><div class="fld" style="grid-column:span 2"><label for="d_ns">Что сделать</label><input id="d_ns" data-f="nextStep" value="${esc(l.nextStep)}" placeholder="Например: позвонить, уточнить дату корпоратива" ${dis}></div><div class="fld"><label for="d_nd">Когда</label><input id="d_nd" type="date" data-f="nextDate" value="${esc(l.nextDate)}" ${dis}></div></div></div>
+    <div class="sec"><h4>Следующий шаг ${l.autoStep?'<span class="chip" style="text-transform:none;letter-spacing:0">поставлен автоматически</span>':""}</h4><div class="grid2"><div class="fld" style="grid-column:span 2"><label for="d_ns">Что сделать</label><input id="d_ns" data-f="nextStep" value="${esc(l.nextStep)}" placeholder="Например: позвонить, уточнить дату корпоратива" ${dis}></div><div class="fld"><label for="d_nd">Когда</label><input id="d_nd" type="date" data-f="nextDate" value="${esc(l.nextDate)}" ${dis}></div></div></div>
     <div class="sec"><h4>Контактное лицо</h4><div class="grid2">
       <div class="fld" style="grid-column:1/-1"><label for="d_nm">ФИО</label><input id="d_nm" data-f="name" value="${esc(l.name)}" placeholder="Фамилия Имя Отчество" ${dis}></div>
       <div class="fld"><label for="d_ph">Телефон</label><div class="cpy"><input id="d_ph" type="tel" data-f="phone" value="${esc(l.phone)}" ${dis}><button class="btn sm" data-act="copyf" data-for="d_ph" title="Копировать">⧉</button></div></div>
@@ -577,6 +629,8 @@ function contactSection(l,dis){
     ${l.resp==="agreed"?'<div class="hint" style="margin-top:8px">Лид перешёл в «Сделка в работе». Заполните сумму в блоке «Деньги».</div>':l.resp==="interest"?'<div class="hint" style="margin-top:8px">Поставьте следующий шаг ниже, чтобы не потерять интерес.</div>':""}
   </div>`;
 }
+function addWorkDays(n){const d=new Date();while(n>0){d.setDate(d.getDate()+1);if(d.getDay()%6)n--}d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function notify(id,kind){try{sb?.functions?.invoke("notify",{body:{type:"event",leadId:id,kind}}).catch(()=>{})}catch(e){}}
 const RANK=["new","scored","approved","sent","replied","qualified","deal","won"];
 function stagePatch(l,target,o,now){
   const cur=RANK.indexOf(o.status||l.status),to=RANK.indexOf(target);
@@ -599,13 +653,25 @@ async function setResp(id,v){
   if(v==="interest")stagePatch(l,"replied",o,now);
   if(v==="agreed")stagePatch(l,"deal",o,now);
   if(v==="refused")stagePatch(l,"lost",o,now);
-  await upd(id,o);render();toast(`Ответ: ${RESP[v]}`);
+  let rem="";
+  const RM={noanswer:[2,"Повторный контакт: нет ответа"],interest:[2,"Дожать интерес: уточнить дату, формат, бюджет"],agreed:[1,"Согласовать детали и выставить КП"]}[v];
+  if(RM&&(!l.nextDate||l.nextDate<today()||l.autoStep)){o.nextDate=addWorkDays(RM[0]);o.nextStep=RM[1];o.autoStep=true;rem=` · напоминание на ${fdate(o.nextDate)}`}
+  if(v==="refused"&&l.autoStep){o.nextDate="";o.nextStep="";o.autoStep=false}
+  await upd(id,o);render();toast(`Ответ: ${RESP[v]}${rem}`);
+  if(v!=="noanswer")notify(id,"resp");
 }
 function openLead(id){openId=id;snd=null;renderDrawer();setTimeout(()=>$("#drawer .db")?.scrollTo(0,0),0)}
 
 /* ---------- actions ---------- */
 let snd=null;
 const tgNum=p=>{let d=String(p||"").replace(/\D/g,"");if(d.length===11&&d[0]==="8")d="7"+d.slice(1);if(d.length===10)d="7"+d;return d.length>=11?d:""};
+const DEF_TPL=[
+ {name:"Первое касание",subject:"Корпоративный киберспортивный турнир для {компания}",text:"{приветствие}\n\nМеня зовут [имя], я из Project LAN — мы организуем корпоративные киберспортивные турниры и игровые мероприятия для сотрудников: от формата и площадки до трансляции и награждения.\n\n[Почему пишем именно вам: ссылка на вашу заявку / публикацию / повод]\n\nМогу коротко рассказать, как это может выглядеть у {компания}, и прислать примеры. Удобно созвониться на 10–15 минут на этой неделе?\n\nС уважением,\n[имя], Project LAN"},
+ {name:"Повторное касание",subject:"Re: Корпоративный турнир для {компания}",text:"{приветствие}\n\nНапоминаю о себе — писал(а) вам про корпоративный киберспортивный турнир для сотрудников {компания}.\n\nЕсли тема актуальна, подскажите, пожалуйста, кому удобнее написать или когда вернуться к разговору. Если нет — тоже скажите, не буду отвлекать.\n\nС уважением,\n[имя], Project LAN"},
+ {name:"После звонка",subject:"Project LAN — по итогам нашего разговора",text:"{приветствие}\n\nСпасибо за разговор! Как договорились, коротко фиксирую:\n\n• Формат: [ ]\n• Количество участников: [ ]\n• Дата / период: [ ]\n• Следующий шаг: [ ]\n\nВо вложении / по ссылке — [КП / презентация]. Если что-то нужно поправить — напишите.\n\nС уважением,\n[имя], Project LAN"}];
+const tpls=()=>Array.isArray(cfg.templates)?cfg.templates:DEF_TPL;
+function greet(l){const p=String(l.name||"").trim().split(/\s+/).filter(Boolean);const n=p.length===3?p[1]+" "+p[2]:p.length?p.join(" "):"";return n?`Здравствуйте, ${n}!`:"Здравствуйте!"}
+function fillTpl(t,l){const co=l.company&&l.company!=="Частное лицо"?l.company:"вашей компании";return t.replace(/\{приветствие\}/g,greet(l)).replace(/\{компания\}/g,co).replace(/\{имя\}/g,l.name||"")}
 function msgSection(l,dis){
   const tg=tgNum(l.phone),st=snd&&snd.id===l.id?snd.mode:"";
   let act;
@@ -616,7 +682,7 @@ function msgSection(l,dis){
     +(tg?`<a class="btn" href="https://t.me/+${tg}" target="_blank" rel="noopener noreferrer" data-act="tg">Открыть в Telegram</a>`:`<button class="btn" disabled>Открыть в Telegram</button>`)
     +`<button class="btn ghost" data-act="copy">Копировать</button>`
     +(!l.email||!tg?`<span class="hint" style="flex-basis:100%">${!l.email?"Нет email в карточке — почта недоступна. ":""}${!tg?"Нет телефона — Telegram недоступен.":""}</span>`:"");
-  return`<div class="sec"><h4>Сообщение клиенту</h4>
+  return`<div class="sec"><h4>Сообщение клиенту <select class="f" id="d_tpl" aria-label="Вставить шаблон" style="margin-left:auto;text-transform:none;letter-spacing:0;font-weight:400;height:28px" ${dis}><option value="">Шаблон…</option>${tpls().map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("")}</select></h4>
     <div class="fld"><label for="d_subj">Тема письма</label><input id="d_subj" data-f="subject" value="${esc(l.subject??"Корпоративный киберспортивный турнир для ваших сотрудников")}" ${dis}></div>
     <div class="fld" style="margin-top:8px"><label for="d_draft">Текст</label><textarea id="d_draft" data-f="draft" style="min-height:160px" placeholder="Здравствуйте! …" ${dis}>${esc(l.draft)}</textarea></div>
     <div class="row" style="margin-top:10px">${act}</div></div>`;
@@ -640,6 +706,7 @@ async function logMsg(id,m){const l=L(id),now=Date.now();const o={messages:[...(
   await upd(id,o)}
 async function setSt(id,v){
   const l=L(id);if(!l||l.status===v)return;
+  if(v==="won")setTimeout(()=>notify(id,"won"),500);
   const o={status:v,log:[...(l.log||[]),{t:Date.now(),s:v,...(myId?{by:myId}:{})}]};
   if(STAMP[v]&&!l[STAMP[v]])o[STAMP[v]]=Date.now();
   if(v==="approved"&&!l.approvedAt)o.approvedAt=Date.now();
@@ -711,8 +778,11 @@ async function saveNew(doScore){
   if(!text&&!company){$("#m_err").textContent="Нужен текст публикации или хотя бы название компании.";return}
   const id=hash(url?norm(url):(company+"|"+text).slice(0,300).toLowerCase());
   if(L(id)){$("#m_err").textContent="Такой лид уже есть: "+(L(id).company||url);return}
-  const doc={url,text,company,contact:$("#m_ct").value.trim(),name:$("#m_nm").value.trim(),phone:$("#m_ph").value.trim(),email:$("#m_em").value.trim(),source:$("#m_src").value,segment:$("#m_seg").value,status:"new",createdAt:Date.now(),createdBy:myId||"",log:[{t:Date.now(),s:"new",...(myId?{by:myId}:{})}]};
-  await dbSet(id,doc);
+  const dd=dupsOf({phone:$("#m_ph").value,email:$("#m_em").value,company});
+  if(dd.length&&!dupForce){$("#m_err").innerHTML=`<div class="warnbox"><b>Похоже, такой лид уже есть:</b>${dd.slice(0,3).map(d=>`<span>• <a data-act="opendup" data-id="${d.l.id}">${esc(d.l.company||d.l.name||"Без названия")}</a> — совпадает ${d.why}${d.l.owner?`, ответственный ${esc(who(d.l.owner))}`:""}</span>`).join("")}<span><button type="button" class="btn sm" data-act="saveforce">Всё равно сохранить</button></span></div>`;return}
+  dupForce=false;
+  const doc={url,text,company,contact:$("#m_ct").value.trim(),name:$("#m_nm").value.trim(),phone:$("#m_ph").value.trim(),email:$("#m_em").value.trim(),source:$("#m_src").value,segment:$("#m_seg").value,status:"new",owner:myId||"",createdAt:Date.now(),createdBy:myId||"",log:[{t:Date.now(),s:"new",...(myId?{by:myId}:{})}]};
+  await dbSet(id,doc);notify(id,"new");
   closeModal();view="queue";lsSet("view",view);render();openLead(id);
   if(doScore&&(text||company))score(id).catch(()=>toast("AI сейчас недоступен"));
 }
@@ -751,13 +821,15 @@ function previewImport(text){
   const m=mapHeaders(rows[0]);
   const recs=rows.slice(1).map(r=>{const o={};for(const[i,k]of Object.entries(m))o[k]=(r[i]||"").trim();return o}).filter(o=>o.company||o.text);
   const ids=new Set(leads.map(l=>l.id));
-  recs.forEach(o=>{o._id=hash(o.url?norm(o.url):((o.company||"")+"|"+(o.text||"")).slice(0,300).toLowerCase());o._dup=ids.has(o._id)});
+  const seenP=new Set(),seenE=new Set();
+  recs.forEach(o=>{o._id=hash(o.url?norm(o.url):((o.company||"")+"|"+(o.text||"")).slice(0,300).toLowerCase());const ph=nPhone(o.phone),em=nMail(o.email);
+    o._dup=ids.has(o._id)||(ph&&(seenP.has(ph)||leads.some(l=>nPhone(l.phone)===ph)))||(em&&(seenE.has(em)||leads.some(l=>nMail(l.email)===em)));if(ph)seenP.add(ph);if(em)seenE.add(em)});
   const fresh=recs.filter(o=>!o._dup);
   imp.recs=fresh;
   const cols=Object.values(m);
   $("#m_prev").innerHTML=`<div class="hint" style="margin-bottom:6px">Распознаны колонки: ${cols.length?cols.map(k=>`<span class="chip">${FL[k]}</span>`).join(" "):'<span class="err">ни одной — проверьте заголовки</span>'}${rows[0].length>cols.length?` · пропущено: ${rows[0].filter((_,i)=>!m[i]).map(esc).join(", ")}`:""}</div>
    <div class="tw prev"><table><thead><tr>${cols.map(k=>`<th>${FL[k]}</th>`).join("")}</tr></thead><tbody>${fresh.slice(0,5).map(o=>`<tr style="cursor:default">${cols.map(k=>`<td>${esc(o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
-   <div class="hint" style="margin-top:6px">Новых: <b>${fresh.length}</b>${recs.length-fresh.length?` · уже в базе: ${recs.length-fresh.length}`:""}. Оценку можно поставить потом в карточке лида.</div>`;
+   <div class="hint" style="margin-top:6px">Новых: <b>${fresh.length}</b>${recs.length-fresh.length?` · пропущено как дубли (тот же телефон, email или ссылка): ${recs.length-fresh.length}`:""}. Оценку можно поставить потом в карточке лида.</div>`;
   $("#m_go").disabled=!fresh.length;$("#m_go").textContent=`Импортировать ${fresh.length}`;
 }
 async function doImport(){
@@ -776,7 +848,7 @@ async function doImport(){
 }
 async function doExport(){
   if(!dl)return;
-  const cols=[["company","Компания"],["status","Статус"],["score","AI-оценка"],["signal","Сигнал"],["source","Источник"],["segment","Сегмент"],["name","ФИО"],["phone","Телефон"],["email","Email"],["contact","Роль"],["url","Ссылка"],["nextStep","Следующий шаг"],["nextDate","Дата шага"],["replyNote","Заметки"],["resp","Ответ"],["lossReason","Причина отказа"],["touchN","Касаний"],["touchCh","Каналы связи"],["touchLast","Последний контакт"],["amount","Сумма"],["commExp","Вознагр. ожид."],["commOk","Вознагр. подтв."],["draft","Черновик"],["text","Текст публикации"]];
+  const cols=[["company","Компания"],["status","Статус"],["score","AI-оценка"],["signal","Сигнал"],["source","Источник"],["segment","Сегмент"],["name","ФИО"],["phone","Телефон"],["email","Email"],["contact","Роль"],["url","Ссылка"],["nextStep","Следующий шаг"],["nextDate","Дата шага"],["replyNote","Заметки"],["owner","Ответственный"],["resp","Ответ"],["lossReason","Причина отказа"],["touchN","Касаний"],["touchCh","Каналы связи"],["touchLast","Последний контакт"],["amount","Сумма"],["commExp","Вознагр. ожид."],["commOk","Вознагр. подтв."],["draft","Черновик"],["text","Текст публикации"]];
   const cell=v=>{v=String(v??"");return/[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const lines=[cols.map(c=>c[1]).join(";")].concat(leads.map(l=>cols.map(([k])=>cell(k==="status"?ST[l.status]:k==="resp"?(RESP[l.resp]||""):k==="touchN"?touchesOf(l).length:k==="touchCh"?[...new Set(touchesOf(l).map(x=>CH[x.ch]))].join(", "):k==="touchLast"?(lastTouch(l)?new Date(lastTouch(l).t).toLocaleString("ru-RU"):""):k==="score"?l.ai?.score:k==="signal"?l.ai?.signal:l[k])).join(";")));
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"}));a.download=`project-lan-leads-${today()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast("Файл скачан")
@@ -785,6 +857,7 @@ async function doExport(){
 /* ---------- events ---------- */
 document.addEventListener("click",async e=>{
   const v=e.target.closest("[data-view]");if(v){view=v.dataset.view;lsSet("view",view);banner="";renderRail();renderMain();window.scrollTo(0,0);return}
+  const sc=e.target.closest("[data-scope]");if(sc){scope=sc.dataset.scope;lsSet("scope",scope);renderRail();renderMain();return}
   const qs=e.target.closest("[data-qseg]");if(qs){qSeg=qs.dataset.qseg;renderMain();return}
   const so=e.target.closest("th[data-sort]");if(so){const k=so.dataset.sort;sort=sort.k===k?{k,d:-sort.d}:{k,d:k==="company"?1:-1};renderMain();return}
   const b=e.target.closest("[data-act]");
@@ -811,10 +884,20 @@ document.addEventListener("click",async e=>{
       else if(act==="logout"){await sb.auth.signOut()}
       else if(act==="mscore"){const l=L(id);await upd(id,{ai:{...(l.ai||{}),score:+b.dataset.v,signal:l.ai?.signal||"ручная оценка"},status:l.status==="new"?"scored":l.status})}
       else if(act==="pw"){const v=$("#c_pw").value;if(v.length<8){toast("Пароль — минимум 8 символов");return}const {error}=await sb.auth.updateUser({password:v});toast(error?"Ошибка: "+error.message:"Пароль изменён");$("#c_pw").value=""}
-      else if(act==="cfg"){await cfgSet({desc:$("#c_desc").value});toast("Описание сохранено")}
+      else if(act==="tpledit"){const i=+b.dataset.i;tplEdit=i<0?{i:-1,name:"Новый шаблон",subject:"",text:"{приветствие}\n\n"}:{i,...tpls()[i]};renderMain()}
+      else if(act==="tplcancel"){tplEdit=null;renderMain()}
+      else if(act==="tplsave"){const t={name:$("#t_name").value.trim()||"Без названия",subject:$("#t_subj").value.trim(),text:$("#t_text").value};const arr=[...tpls()];if(tplEdit.i<0)arr.push(t);else arr[tplEdit.i]=t;await cfgSet({...cfg,templates:arr});tplEdit=null;renderMain();toast("Шаблон сохранён")}
+      else if(act==="tpldel"){const arr=tpls().filter((_,i)=>i!==+b.dataset.i);await cfgSet({...cfg,templates:arr});renderMain();toast("Шаблон удалён")}
+      else if(act==="tgsetup"){b.disabled=true;b.textContent="Подключаю…";try{const r=await tgCall("setup",{token:$("#tg_tok").value.trim()});if(r.ok){tgState={connected:true,chat:r.chat,bot:r.bot};toast("Telegram подключён — проверьте чат")}else if(r.needChat){tgState={connected:false,hasToken:true,bot:r.bot,msg:`Токен принят. Теперь добавьте @${r.bot} в чат команды, напишите там любое сообщение и снова нажмите «Подключить».`}}}catch(e){tgState={...(tgState||{}),connected:false,msg:e.message,err:1}}renderMain()}
+      else if(act==="tgtest"){b.disabled=true;try{const r=await tgCall("digest_now");toast(r.skipped?"Дел на сегодня и просроченных нет — сводка пустая":r.ok?"Сводка отправлена в чат":"Не отправилось: "+(r.description||r.error||""))}catch(e){toast(e.message)}b.disabled=false}
+      else if(act==="tgoff"){await tgCall("disconnect");tgState={connected:false};renderMain();toast("Telegram отключён")}
+      else if(act==="takeme"){await upd(id,{owner:myId});render();toast("Лид закреплён за вами")}
+      else if(act==="saveforce"){dupForce=true;await saveNew(false)}
+      else if(act==="opendup"){closeModal();openLead(b.dataset.id)}
+      else if(act==="cfg"){await cfgSet({...cfg,desc:$("#c_desc").value});toast("Описание сохранено")}
       else if(act==="export")await doExport();
       else if(act==="doimport")await doImport();
-      else if(act==="clearf"){F={st:"",src:"",seg:"",resp:"",ct:""};renderMain()}
+      else if(act==="clearf"){F={st:"",src:"",seg:"",resp:"",ct:"",own:""};renderMain()}
       else if(act==="del"){const l=L(id);if(l){l._confirmDel=1;renderDrawer()}}
       else if(act==="delno"){const l=L(id);if(l){delete l._confirmDel;renderDrawer()}}
       else if(act==="delyes"){await dbDel(id);openId=null;renderDrawer();toast("Лид удалён")}
@@ -829,10 +912,14 @@ document.addEventListener("change",async e=>{
   const el=e.target;
   if(el.dataset.filter){F[el.dataset.filter]=el.value;renderMain();return}
   if(el.id==="m_file"&&el.files[0]){previewImport(await el.files[0].text());return}
+  if(el.id==="d_tpl"){const id=$("#drawer").dataset.id,l=L(id),t=tpls()[+el.value];if(!l||!t)return;
+    const cur=$("#d_draft").value.trim();if(cur&&cur!==String(l.draft||"").trim()){}
+    const subject=fillTpl(t.subject||"",l),text=fillTpl(t.text||"",l);$("#d_subj").value=subject;$("#d_draft").value=text;el.value="";
+    try{await upd(id,{subject,draft:text,draftEdited:true});toast(`Шаблон «${t.name}» вставлен — замените [поля в скобках]`)}catch(er){toast("Не сохранилось: "+(er.message||er.code))}return}
   if(el.id==="d_sc"||el.id==="d_vd"){const id=$("#drawer").dataset.id,l=L(id);if(!l)return;const ai={...(l.ai||{}),signal:l.ai?.signal||"ручная оценка"};if(el.id==="d_sc"){if(el.value==="")return;ai.score=Math.max(0,Math.min(100,Math.round(+el.value)))}else ai.verdict=el.value;try{await upd(id,{ai,status:l.status==="new"?"scored":l.status})}catch(er){toast("Не сохранилось: "+(er.message||er.code))}return}
   const f=el.dataset.f,id=$("#drawer").dataset.id;
   if(!f||!id||!$("#drawer").contains(el))return;
-  try{const o={};o[f]=el.dataset.num!==undefined?(el.value===""?"":+el.value):el.value;if(f==="draft")o.draftEdited=true;await upd(id,o)}
+  try{const o={};o[f]=el.dataset.num!==undefined?(el.value===""?"":+el.value):el.value;if(f==="draft")o.draftEdited=true;if(f==="nextStep"||f==="nextDate")o.autoStep=false;if(f==="owner"&&el.value&&el.value!==myId)setTimeout(()=>notify(id,"assign"),300);await upd(id,o)}
   catch(er){toast("Не сохранилось: "+(er.message||er.code))}
 });
 document.addEventListener("input",e=>{
