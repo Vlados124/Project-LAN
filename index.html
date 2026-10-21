@@ -216,6 +216,24 @@ td .sub{color:var(--ink3);font-size:12px;max-width:34ch;white-space:nowrap;overf
 .hint{font-size:12px;color:var(--ink3)}
 .msgs{display:flex;flex-direction:column;gap:6px}.msg summary{cursor:pointer;display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap}.msg .mt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 a.btn{text-decoration:none;color:inherit}
+.ico{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.chs{display:inline-flex;gap:3px;color:var(--accent);align-items:center}
+.tbtns{display:flex;gap:6px;flex-wrap:wrap}
+.tbtns .btn{gap:6px}
+.rseg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.rseg button{all:unset;cursor:pointer;text-align:center;padding:8px 6px;border-radius:9px;border:1px solid var(--line);font-size:13px;font-weight:500;color:var(--ink2);background:var(--surface)}
+.rseg button:hover{border-color:var(--line2)}
+.rseg button:focus-visible{outline:2px solid var(--accent)}
+.rseg button.on{color:#fff;border-color:transparent}
+.rseg button.on[data-v="noanswer"]{background:var(--ink3)}.rseg button.on[data-v="refused"]{background:var(--lo)}.rseg button.on[data-v="interest"]{background:var(--mid)}.rseg button.on[data-v="agreed"]{background:var(--hi)}
+@media (max-width:420px){.rseg{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tlist{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink2)}
+.tlist div{display:flex;gap:8px;align-items:center;min-width:0}
+.tlist .num{color:var(--ink3);font-size:12px;flex:none}
+.tlist .nt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink3)}
+.sub2{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+td .sub2{flex-wrap:nowrap;white-space:nowrap;margin:0}
+td.nw{white-space:nowrap}
 .cpy{display:flex;gap:6px}.cpy input{flex:1;min-width:0}.cpy .btn{height:auto}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
@@ -257,7 +275,7 @@ body.auth .shell,body.auth .top .btn{display:none}
 </header>
 <div class="shell">
   <nav class="rail" id="rail"></nav>
-  <main id="main"><div class="empty"><h3>Загружаю базу…</h3><p>Если ничего не появляется, откройте страницу под своей учётной записью claude.ai.</p></div></main>
+  <main id="main"><div class="empty"><h3>Загружаю базу…</h3></div></main>
 </div>
 <div id="drawerWrap" hidden><div class="scrim" data-act="close"></div><aside class="drawer" id="drawer" aria-label="Карточка лида"></aside></div>
 <div id="modal" class="modal" hidden></div>
@@ -270,7 +288,7 @@ body.auth .shell,body.auth .top .btn{display:none}
 <script>
 const SRC=["БД Колизеум","Заявка с сайта","Telegram","Сайт/новости","RSS/поиск","ВКонтакте","Google Таблица","Вручную"];
 const SEG=["HR","Руководитель","Event-менеджер","Не определён"];
-const ST={new:"Новая",scored:"На проверке",approved:"Одобрена",sent:"Отправлено",replied:"Есть ответ",qualified:"Квалифицирован",deal:"Сделка в работе",won:"Сделка закрыта",lost:"Отказ/потеряно",rejected:"Отклонена"};
+const ST={new:"Новая",scored:"На проверке",approved:"Одобрена",sent:"Связались",replied:"Есть ответ",qualified:"Квалифицирован",deal:"Сделка в работе",won:"Сделка закрыта",lost:"Отказ/потеряно",rejected:"Отклонена"};
 const FLOW=["new","scored","approved","sent","replied","qualified","deal","won"];
 const BOARD=["approved","sent","replied","qualified","deal","won","lost"];
 const ACTIVE=["approved","sent","replied","qualified","deal"];
@@ -286,7 +304,7 @@ const ICON={
 
 let sb=null,db=null,sample=null,dl=true,myId=null,canWrite=true,leads=[],cfg={desc:""},loaded=false;
 let view=lsGet("view")||"queue",q="",openId=null,busy={},banner="",pend={main:false,drawer:false};
-let F={st:"",src:"",seg:""},sort={k:"createdAt",d:-1},qSeg="toreview",batch=null,dragId=null,imp=null;
+let F={st:"",src:"",seg:"",resp:"",ct:""},sort={k:"createdAt",d:-1},qSeg="toreview",batch=null,dragId=null,imp=null;
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -308,6 +326,16 @@ const upd=(id,o)=>dbPatch(id,{...o,updatedAt:Date.now(),...(myId?{updatedBy:myId
 function who(id){if(!id)return"";if(id===myId)return"вы";return String(id).split("@")[0]}
 function scoreCls(l){const s=l.ai?.score;return s==null?"na":s>=70?"hi":s>=40?"mid":"lo"}
 function scoreEl(l,big){return`<span class="score ${scoreCls(l)} ${big?"big":""}">${l.ai?l.ai.score:"—"}</span>`}
+const ICO={email:'<path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/>',messenger:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',call:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>'};
+const CH={email:"Почта",messenger:"Мессенджер",call:"Звонок"};
+const RESP={noanswer:"Нет ответа",refused:"Отказ",interest:"Интерес",agreed:"Согласие"};
+const RCOL={noanswer:"var(--ink3)",refused:"var(--lo)",interest:"var(--mid)",agreed:"var(--hi)"};
+const LOSS=["Не актуально","Нет бюджета","Дорого","Уже есть подрядчик","Не та аудитория / нет сотрудников","Не дозвонились","Другое"];
+const ico=(k,sz=14)=>`<svg class="ico" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
+function touchesOf(l){return[...(l.touches||[]),...(l.messages||[]).map(m=>({t:m.t,by:m.by,ch:m.ch==="email"?"email":"messenger",note:m.ch==="email"?"Письмо из CRM: "+(m.subject||""):"Сообщение в Telegram",auto:1}))].sort((a,b)=>a.t-b.t)}
+function lastTouch(l){const a=touchesOf(l);return a[a.length-1]}
+function chIcons(l){const set=new Set(touchesOf(l).map(x=>x.ch));return set.size?`<span class="chs" title="${[...set].map(k=>CH[k]).join(", ")}">${["email","messenger","call"].filter(k=>set.has(k)).map(k=>ico(k)).join("")}</span>`:""}
+function respChip(l){return l.resp?`<span class="chip resp" style="color:${RCOL[l.resp]}"><span class="dot"></span><span style="color:var(--ink2)">${RESP[l.resp]}${l.resp==="refused"&&l.lossReason?" · "+esc(l.lossReason):""}</span></span>`:""}
 function stChip(s){return`<span class="chip" style="color:${SCOL[s]}"><span class="dot"></span><span style="color:var(--ink2)">${ST[s]||s}</span></span>`}
 function match(l){if(!q)return true;const s=q.toLowerCase();return[l.company,l.name,l.phone,l.email,l.contact,l.text,l.url,l.replyNote,l.nextStep,l.source,l.segment].some(v=>String(v||"").toLowerCase().includes(s))}
 
@@ -385,7 +413,7 @@ function vQueue(){
   return head+'<div class="qlist">'+list.map(l=>`<div class="qrow" data-open="${l.id}">
     ${scoreEl(l,true)}
     <div style="min-width:0"><h3>${esc(l.company||"Компания не указана")}</h3>${l.name||l.phone?`<div class="hint" style="margin-top:2px">${esc([l.name,l.phone].filter(Boolean).join(" · "))}</div>`:""}
-      <div class="meta"><span class="chip">${esc(l.source||"—")}</span><span class="chip">${esc(l.segment||"—")}</span>${l.ai?.signal?`<span class="chip">${esc(l.ai.signal)}</span>`:""}</div>
+      <div class="meta"><span class="chip">${esc(l.source||"—")}</span><span class="chip">${esc(l.segment||"—")}</span>${l.ai?.signal?`<span class="chip">${esc(l.ai.signal)}</span>`:""}${respChip(l)}${chIcons(l)}</div>
       <p class="why">${esc(l.ai?.verdict||(busy[l.id]?"AI оценивает…":l.err||(l.text||"").slice(0,200)))}</p></div>
     <div class="side">${l.ai||!sample?`<button class="btn sm ok" data-act="st" data-id="${l.id}" data-v="approved">Одобрить</button><button class="btn sm no" data-act="st" data-id="${l.id}" data-v="rejected">Отклонить</button>`:`<button class="btn sm" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample?"disabled":""}>${busy[l.id]?"Оцениваю…":"Оценить AI"}</button>`}</div>
   </div>`).join("")+"</div>";
@@ -402,6 +430,7 @@ function vBoard(){
     <div class="colb">${items.length?items.map(l=>`<article class="kc" draggable="true" data-open="${l.id}" data-drag="${l.id}">
       <div class="t"><b>${esc(l.company||"Без названия")}</b>${scoreEl(l)}</div>
       ${l.nextStep||l.nextDate?`<div class="ns ${l.nextDate&&l.nextDate<t&&ACTIVE.includes(s)?"late":""}">${l.nextDate?`<span class="num">${fdate(l.nextDate)}</span>`:""}<span>${esc(l.nextStep||"")}</span></div>`:(ACTIVE.includes(s)?'<div class="ns" style="color:var(--ink3)">Нет следующего шага</div>':"")}
+      ${l.resp||touchesOf(l).length?`<div class="ft">${respChip(l)}${chIcons(l)}${lastTouch(l)?`<span class="num">${fdate(new Date(lastTouch(l).t).toISOString().slice(0,10))}</span>`:""}</div>`:""}
       <div class="ft"><span>${esc(l.name||l.segment||"")}</span>${l.amount?`<span class="money">${rub(l.amount)}</span>`:""}</div>
     </article>`).join(""):'<div class="empty-col">Перетащите карточку сюда</div>'}</div></section>`}).join("");
   return`<div class="ph"><div><h1>Воронка</h1><p>Перетаскивайте карточки между этапами. Клик открывает лида целиком.</p></div></div><div class="board">${cols}</div>`;
@@ -410,16 +439,17 @@ function vBoard(){
 /* Все лиды */
 function vAll(){
   if(!leads.length)return emptyAll();
-  let list=leads.filter(l=>match(l)&&(!F.st||l.status===F.st)&&(!F.src||l.source===F.src)&&(!F.seg||l.segment===F.seg));
-  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>l.nextDate||"9999",amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0}[sort.k];
+  let list=leads.filter(l=>match(l)&&(!F.st||l.status===F.st)&&(!F.src||l.source===F.src)&&(!F.seg||l.segment===F.seg)
+    &&(!F.resp||(F.resp==="none"?!l.resp:l.resp===F.resp))&&(!F.ct||(F.ct==="no"?!touchesOf(l).length:F.ct==="any"?touchesOf(l).length:touchesOf(l).some(x=>x.ch===F.ct))));
+  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>l.nextDate||"9999",touch:l=>lastTouch(l)?.t||0,resp:l=>["agreed","interest","noanswer","refused"].indexOf(l.resp)>>>0,amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0}[sort.k];
   list.sort((a,b)=>{const x=key(a),y=key(b);return(x<y?-1:x>y?1:0)*sort.d});
   const opt=(arr,v,lbl)=>`<option value="">${lbl}</option>`+arr.map(([k,t])=>`<option value="${esc(k)}" ${v===k?"selected":""}>${esc(t)}</option>`).join("");
   const srcs=[...new Set(leads.map(l=>l.source).filter(Boolean))],segs=[...new Set(leads.map(l=>l.segment).filter(Boolean))];
   const th=(k,t,c="")=>`<th data-sort="${k}" class="${c}">${t}${sort.k===k?(sort.d>0?" ↑":" ↓"):""}</th>`;
   return`<div class="ph"><div><h1>Все лиды</h1><p>${list.length} из ${leads.length}. Сортировка по клику на заголовок.</p></div><div class="act"><button class="btn" data-act="export" ${dl?"":"disabled"}>Выгрузить CSV</button></div></div>
-  <div class="filters"><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select>${F.st||F.src||F.seg?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
-  <div class="tw"><table><thead><tr>${th("company","Компания")}${th("score","AI")}${th("status","Статус")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
-  ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(l.company||"—")}</div><div class="sub">${esc([l.name,l.phone].filter(Boolean).join(" · ")||l.contact||l.segment||"")}</div></td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="8" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
+  <div class="filters"><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select><select class="f" id="fct" data-filter="ct">${opt([["no","Ещё не связывались"],["any","Связывались"],["email","Связывались по почте"],["messenger","В мессенджере"],["call","Звонили"]],F.ct,"Связь: любая")}</select><select class="f" id="fresp" data-filter="resp">${opt([["none","Без ответа (не отмечен)"],...Object.entries(RESP)],F.resp,"Ответ: любой")}</select>${F.st||F.src||F.seg||F.ct||F.resp?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
+  <div class="tw"><table><thead><tr>${th("company","Компания")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
+  ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(l.company||"—")}</div><div class="sub">${esc([l.name,l.phone].filter(Boolean).join(" · ")||l.contact||l.segment||"")}</div></td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="10" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
   </tbody></table></div>`;
 }
 
@@ -454,8 +484,25 @@ function vMetrics(){
    <div class="kpi"><div class="l">Вознаграждение</div><div class="v">${rub(sum("commOk"))}</div><div class="s">подтверждено · ожидается ${rub(sum("commExp"))}</div></div>
   </div>
   <div class="panel"><h3>Воронка</h3><div class="fun">${stages.map(([t,n],i)=>`<div class="fr"><span>${t}</span><div class="bar"><i style="width:${n/max*100}%;opacity:${1-i*.08}"></i></div><span class="v">${n} <small>${i?pct(n,stages[i-1][1]):""}</small></span></div>`).join("")}</div><p class="hint" style="margin:10px 0 0">Процент — переход с предыдущего этапа. Порог «релевантности» 60 баллов — рабочая договорённость, не факт.</p></div>
+  ${respPanel()}
   <div class="two">${tbl("По источникам",l=>l.source)}${tbl("По сегментам",l=>l.segment)}</div>
   <div style="height:14px"></div>${tbl("По типам сигналов",l=>l.ai?.signal)}`;
+}
+
+function respPanel(){
+  const touched=leads.filter(l=>touchesOf(l).length);
+  const rows=Object.entries(RESP).map(([k,t])=>[t,leads.filter(l=>l.resp===k).length,RCOL[k]]);
+  const tot=rows.reduce((a,r)=>a+r[1],0)||1;
+  const chRows=["email","messenger","call"].map(k=>{const ls=leads.filter(l=>touchesOf(l).some(x=>x.ch===k));return[k,touchesOf({touches:leads.flatMap(l=>l.touches||[]),messages:leads.flatMap(l=>l.messages||[])}).filter(x=>x.ch===k).length,ls.length,ls.filter(l=>l.resp==="interest"||l.resp==="agreed").length,ls.filter(l=>l.resp==="agreed").length]});
+  const reasons={};leads.filter(l=>l.resp==="refused").forEach(l=>{const r=l.lossReason||"Причина не указана";reasons[r]=(reasons[r]||0)+1});
+  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+  return`<div class="two" style="margin-bottom:14px">
+   <div class="panel"><h3>Ответы лидов</h3><p class="hint" style="margin:-6px 0 12px">Связались с ${touched.length} из ${leads.length} · ответ отмечен у ${leads.filter(l=>l.resp).length}</p>
+    <div class="fun">${rows.map(([t,n,c])=>`<div class="fr"><span>${t}</span><div class="bar"><i style="width:${n/tot*100}%;background:${c}"></i></div><span class="v">${n} <small>${pct(n,tot===1&&!n?0:tot)}</small></span></div>`).join("")}</div>
+    ${Object.keys(reasons).length?`<div class="k" style="margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--ink2)">Причины отказов</div><div class="tlist">${Object.entries(reasons).sort((a,b)=>b[1]-a[1]).map(([r,n])=>`<div><span>${esc(r)}</span><span class="num" style="margin-left:auto">${n}</span></div>`).join("")}</div>`:""}</div>
+   <div class="panel"><h3>Каналы связи</h3><div class="tw" style="border:0"><table><thead><tr><th></th><th class="r">Касаний</th><th class="r">Лидов</th><th class="r">Интерес+</th><th class="r">Согласие</th></tr></thead><tbody>
+    ${chRows.map(([k,n,ls,int,ag])=>`<tr style="cursor:default"><td><span class="sub2" style="margin:0">${ico(k)} ${CH[k]}</span></td><td class="r num">${n}</td><td class="r num">${ls}</td><td class="r num">${int} <span style="color:var(--ink3)">${pct(int,ls)}</span></td><td class="r num">${ag}</td></tr>`).join("")}
+    </tbody></table></div><p class="hint" style="margin:10px 0 0">«Интерес+» — ответ «Интерес» или «Согласие» среди лидов, с которыми связывались этим каналом.</p></div></div>`;
 }
 
 /* Настройки */
@@ -471,7 +518,7 @@ function vSettings(){
   <div style="height:14px"></div>
   <div class="panel"><h3>Мой пароль</h3><div class="row"><div class="fld" style="flex:1;min-width:200px"><input id="c_pw" type="password" autocomplete="new-password" placeholder="Новый пароль, минимум 8 символов"></div><button class="btn" data-act="pw">Сменить</button></div></div>
   <div class="panel"><h3>Горячие клавиши</h3><div class="hint" style="line-height:1.9"><span class="num">/</span> — поиск · <span class="num">N</span> — новый лид · <span class="num">Esc</span> — закрыть карточку</div>
-  <p class="hint" style="margin-top:10px">Сообщения система не отправляет: вы копируете черновик и пишете сами, потом отмечаете «Отправлено». Храните только компанию и роль из публичных источников, без лишних персональных данных.</p></div>`;
+  <p class="hint" style="margin-top:10px">Каждый контакт с лидом отмечайте в карточке — почта, мессенджер или звонок — и ставьте ответ. Так метрики покажут, какой канал работает. Храните только компанию и роль из публичных источников, без лишних персональных данных.</p></div>`;
 }
 
 /* ---------- drawer ---------- */
@@ -493,7 +540,7 @@ function renderDrawer(){
   <div class="db">
     ${s==="new"||s==="scored"?`<div class="row"><button class="btn ok" data-act="st" data-id="${l.id}" data-v="approved" ${dis}>Одобрить в работу</button><button class="btn no" data-act="st" data-id="${l.id}" data-v="rejected" ${dis}>Отклонить</button></div>`
      :`<div class="sec"><h4>Этап</h4><div class="stepper">${steps}</div></div>`}
-    ${s==="approved"?`<div class="hint" style="margin-top:-8px">Скопируйте черновик ниже, отправьте сами и нажмите «Отправлено».</div>`:""}
+    ${contactSection(l,dis)}
     ${!sample?`<div class="sec"><h4>Оценка лида</h4><div class="row">${scoreEl(l,true)}<div class="seg">${[["Горячий",80],["Тёплый",55],["Холодный",20]].map(([t,n])=>`<button data-act="mscore" data-v="${n}" class="${a?.score===n?"on":""}" ${dis}>${t}</button>`).join("")}</div><div class="fld" style="width:90px"><input id="d_sc" type="number" min="0" max="100" inputmode="numeric" value="${a?.score??""}" placeholder="0–100" aria-label="Оценка 0–100" ${dis}></div></div>
      <div class="fld" style="margin-top:10px"><label for="d_vd">Почему такая оценка</label><input id="d_vd" value="${esc(a?.verdict)}" placeholder="Например: крупная компания, просят турнир на 1000 человек" ${dis}></div>
      ${a?.reasons?.length||a?.evidence?.length?`<div class="ai" style="margin-top:10px"><div class="body">${list("","Почему",a.reasons)}${list("ev","Подтверждено публикацией",a.evidence)}${list("as","Предположения, не подтверждены",a.assumptions)}${list("","Проверить вручную",a.risks)}</div></div>`:""}</div>`:`<div class="sec"><h4>AI-оценка ${a?`<button class="btn sm" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample||!canWrite?"disabled":""}>${busy[l.id]?"Оцениваю…":"Переоценить"}</button>`:""}</h4>
@@ -513,9 +560,46 @@ function renderDrawer(){
     <div class="sec"><h4>Деньги</h4><div class="grid2"><div class="fld"><label for="d_am">Сумма сделки, ₽</label><input id="d_am" type="number" inputmode="numeric" data-f="amount" data-num value="${esc(l.amount)}" ${dis}></div><div class="fld"><label for="d_ce">Вознаграждение ожид., ₽</label><input id="d_ce" type="number" inputmode="numeric" data-f="commExp" data-num value="${esc(l.commExp)}" ${dis}></div><div class="fld"><label for="d_co">Вознаграждение подтв., ₽</label><input id="d_co" type="number" inputmode="numeric" data-f="commOk" data-num value="${esc(l.commOk)}" ${dis}></div></div></div>
     <div class="sec"><h4>Первоисточник</h4>${l.url?`<div class="link"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.url)}</a></div>`:""}${l.text?`<div class="src" style="margin-top:6px">${esc(l.text)}</div>`:'<div class="hint">Текста публикации нет.</div>'}</div>
     ${l.messages?.length?`<div class="sec"><h4>Отправленные сообщения <span class="num" style="color:var(--ink2)">${l.messages.length}</span></h4><div class="msgs">${l.messages.slice().reverse().map(m=>`<details class="msg"><summary><span class="chip">${m.ch==="email"?"Почта":"Telegram"}</span><span class="num">${ftime(m.t)}</span><span class="mt">${esc(m.subject||m.to||"")}</span><span style="color:var(--ink3)">${esc(who(m.by))}</span></summary><div class="src" style="margin-top:6px">${m.to?`Кому: ${esc(m.to)}\n\n`:""}${esc(m.text)}</div></details>`).join("")}</div></div>`:""}
-    ${l.log?.length?`<div class="sec"><h4>История</h4><div class="log">${l.log.slice().reverse().map(e=>`<div><span class="num">${ftime(e.t)}</span><span>${esc(ST[e.s]||e.s)}</span>${e.by?`<span style="color:var(--ink3)">— ${esc(who(e.by))}</span>`:""}</div>`).join("")}</div></div>`:""}
+    ${l.log?.length?`<div class="sec"><h4>История</h4><div class="log">${l.log.slice().reverse().map(e=>`<div><span class="num">${ftime(e.t)}</span><span>${e.r?"Ответ: "+esc(RESP[e.r]||e.r):esc(ST[e.s]||e.s)}</span>${e.by?`<span style="color:var(--ink3)">— ${esc(who(e.by))}</span>`:""}</div>`).join("")}</div></div>`:""}
     ${canWrite?`<div class="sec"><h4>Опасная зона</h4><div class="row">${l._confirmDel?`<span class="err">Удалить лида навсегда?</span><button class="btn sm no" data-act="delyes" data-id="${l.id}">Да, удалить</button><button class="btn sm" data-act="delno">Отмена</button>`:`<button class="btn sm ghost" style="color:var(--lo)" data-act="del">Удалить лида</button>`}</div></div>`:""}
   </div>`;
+}
+function contactSection(l,dis){
+  const tn=tgNum(l.phone),ts=touchesOf(l);
+  return`<div class="sec"><h4>Связь с лидом ${ts.length?`<span class="num" style="color:var(--ink2)">${ts.length}</span>`:""}${tn?`<a class="btn sm" href="tel:+${tn}">${ico("call")} Позвонить</a>`:""}</h4>
+    <div class="fld"><input id="d_tn" placeholder="Комментарий к контакту (необязательно): «не взял трубку», «просили КП»…" ${dis}></div>
+    <div class="tbtns" style="margin-top:8px"><span class="hint" style="align-self:center">Отметить, что связались:</span>${["email","messenger","call"].map(k=>`<button class="btn sm" data-act="touch" data-v="${k}" ${dis}>${ico(k)} ${CH[k]}</button>`).join("")}</div>
+    ${ts.length?`<div class="tlist" style="margin-top:10px">${ts.slice(-5).reverse().map(x=>`<div><span class="num">${ftime(x.t)}</span>${ico(x.ch)}<span>${CH[x.ch]}</span><span class="nt">${esc(x.note||"")}</span><span style="color:var(--ink3);margin-left:auto;flex:none">${esc(who(x.by))}</span></div>`).join("")}${ts.length>5?`<div class="hint">…и ещё ${ts.length-5} раньше</div>`:""}</div>`:'<div class="hint" style="margin-top:8px">Ещё не связывались.</div>'}
+  </div>
+  <div class="sec"><h4>Ответ лида ${l.respAt?`<span class="num" style="color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">${ftime(l.respAt)}</span>`:""}</h4>
+    <div class="rseg">${Object.entries(RESP).map(([k,t])=>`<button data-act="resp" data-v="${k}" class="${l.resp===k?"on":""}" ${dis} aria-pressed="${l.resp===k}">${t}</button>`).join("")}</div>
+    ${l.resp==="refused"?`<div class="fld" style="margin-top:8px"><label for="d_lr">Причина отказа</label><select id="d_lr" data-f="lossReason" ${dis}><option value="">— выберите —</option>${LOSS.map(x=>`<option ${l.lossReason===x?"selected":""}>${x}</option>`).join("")}</select></div>`:""}
+    ${l.resp==="agreed"?'<div class="hint" style="margin-top:8px">Лид перешёл в «Сделка в работе». Заполните сумму в блоке «Деньги».</div>':l.resp==="interest"?'<div class="hint" style="margin-top:8px">Поставьте следующий шаг ниже, чтобы не потерять интерес.</div>':""}
+  </div>`;
+}
+const RANK=["new","scored","approved","sent","replied","qualified","deal","won"];
+function stagePatch(l,target,o,now){
+  const cur=RANK.indexOf(o.status||l.status),to=RANK.indexOf(target);
+  if(target!=="lost"&&(cur<0||cur>=to))return;
+  if(target==="lost"&&(o.status||l.status)==="lost")return;
+  o.status=target;o.log=[...(o.log||l.log||[]),{t:now,s:target,by:myId}];
+  for(const k of RANK.slice(2,to+1))if(STAMP[k]&&!l[STAMP[k]])o[STAMP[k]]=now;
+}
+async function addTouch(id,ch){
+  const l=L(id),now=Date.now(),note=($("#d_tn")?.value||"").trim();
+  const o={touches:[...(l.touches||[]),{t:now,by:myId,ch,...(note?{note}:{})}],lastTouchAt:now};
+  stagePatch(l,"sent",o,now);
+  await upd(id,o);render();toast(`Отмечено: ${CH[ch].toLowerCase()}${note?" — "+note:""}`);
+}
+async function setResp(id,v){
+  const l=L(id),now=Date.now();
+  if(l.resp===v){await upd(id,{resp:"",respAt:null});render();return}
+  const o={resp:v,respAt:now,log:[...(l.log||[]),{t:now,r:v,by:myId}]};
+  if(v!=="noanswer")stagePatch(l,"sent",o,now);
+  if(v==="interest")stagePatch(l,"replied",o,now);
+  if(v==="agreed")stagePatch(l,"deal",o,now);
+  if(v==="refused")stagePatch(l,"lost",o,now);
+  await upd(id,o);render();toast(`Ответ: ${RESP[v]}`);
 }
 function openLead(id){openId=id;snd=null;renderDrawer();setTimeout(()=>$("#drawer .db")?.scrollTo(0,0),0)}
 
@@ -552,7 +636,7 @@ async function sendEmail(id){
   toast(msg?"Не отправлено: "+msg:"Письмо отправлено на "+l.email);
 }
 async function logMsg(id,m){const l=L(id),now=Date.now();const o={messages:[...(l.messages||[]),{t:now,by:myId,...m}]};
-  if(["new","scored","approved"].includes(l.status)){o.status="sent";o.log=[...(l.log||[]),{t:now,s:"sent",by:myId}];o.sentAt=l.sentAt||now;o.approvedAt=l.approvedAt||now}
+  o.lastTouchAt=now;stagePatch(l,"sent",o,now);
   await upd(id,o)}
 async function setSt(id,v){
   const l=L(id);if(!l||l.status===v)return;
@@ -692,9 +776,9 @@ async function doImport(){
 }
 async function doExport(){
   if(!dl)return;
-  const cols=[["company","Компания"],["status","Статус"],["score","AI-оценка"],["signal","Сигнал"],["source","Источник"],["segment","Сегмент"],["name","ФИО"],["phone","Телефон"],["email","Email"],["contact","Роль"],["url","Ссылка"],["nextStep","Следующий шаг"],["nextDate","Дата шага"],["replyNote","Заметки"],["amount","Сумма"],["commExp","Вознагр. ожид."],["commOk","Вознагр. подтв."],["draft","Черновик"],["text","Текст публикации"]];
+  const cols=[["company","Компания"],["status","Статус"],["score","AI-оценка"],["signal","Сигнал"],["source","Источник"],["segment","Сегмент"],["name","ФИО"],["phone","Телефон"],["email","Email"],["contact","Роль"],["url","Ссылка"],["nextStep","Следующий шаг"],["nextDate","Дата шага"],["replyNote","Заметки"],["resp","Ответ"],["lossReason","Причина отказа"],["touchN","Касаний"],["touchCh","Каналы связи"],["touchLast","Последний контакт"],["amount","Сумма"],["commExp","Вознагр. ожид."],["commOk","Вознагр. подтв."],["draft","Черновик"],["text","Текст публикации"]];
   const cell=v=>{v=String(v??"");return/[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const lines=[cols.map(c=>c[1]).join(";")].concat(leads.map(l=>cols.map(([k])=>cell(k==="status"?ST[l.status]:k==="score"?l.ai?.score:k==="signal"?l.ai?.signal:l[k])).join(";")));
+  const lines=[cols.map(c=>c[1]).join(";")].concat(leads.map(l=>cols.map(([k])=>cell(k==="status"?ST[l.status]:k==="resp"?(RESP[l.resp]||""):k==="touchN"?touchesOf(l).length:k==="touchCh"?[...new Set(touchesOf(l).map(x=>CH[x.ch]))].join(", "):k==="touchLast"?(lastTouch(l)?new Date(lastTouch(l).t).toLocaleString("ru-RU"):""):k==="score"?l.ai?.score:k==="signal"?l.ai?.signal:l[k])).join(";")));
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"}));a.download=`project-lan-leads-${today()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast("Файл скачан")
 }
 
@@ -715,6 +799,8 @@ document.addEventListener("click",async e=>{
       else if(act==="st")await setSt(id,b.dataset.v);
       else if(act==="score")score(id).catch(er=>toast(er.code==="rate_limited"?"Лимит запросов к AI — попробуйте позже":"AI недоступен"));
       else if(act==="batch")runBatch();
+      else if(act==="touch")await addTouch(id,b.dataset.v);
+      else if(act==="resp")await setResp(id,b.dataset.v);
       else if(act==="email"){snd={id,mode:"confirm"};renderDrawer()}
       else if(act==="emailyes")await sendEmail(id);
       else if(act==="sndno"){snd=null;renderDrawer()}
@@ -728,7 +814,7 @@ document.addEventListener("click",async e=>{
       else if(act==="cfg"){await cfgSet({desc:$("#c_desc").value});toast("Описание сохранено")}
       else if(act==="export")await doExport();
       else if(act==="doimport")await doImport();
-      else if(act==="clearf"){F={st:"",src:"",seg:""};renderMain()}
+      else if(act==="clearf"){F={st:"",src:"",seg:"",resp:"",ct:""};renderMain()}
       else if(act==="del"){const l=L(id);if(l){l._confirmDel=1;renderDrawer()}}
       else if(act==="delno"){const l=L(id);if(l){delete l._confirmDel;renderDrawer()}}
       else if(act==="delyes"){await dbDel(id);openId=null;renderDrawer();toast("Лид удалён")}
