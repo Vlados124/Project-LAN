@@ -29,7 +29,27 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "Неверный запрос" }, 400); }
+  const smtpUser = Deno.env.get("SMTP_USER")?.trim(), smtpPass = Deno.env.get("SMTP_PASS")?.trim();
+  const mkTransport = () => nodemailer.createTransport({
+    host: Deno.env.get("SMTP_HOST") || "smtp.mail.ru",
+    port: Number(Deno.env.get("SMTP_PORT") || 465),
+    secure: true,
+    connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 20000,
+    auth: { user: smtpUser!, pass: smtpPass! },
+  });
+  const authHint = (m: string) => /auth|535|invalid login|password/i.test(m)
+    ? "почта не приняла логин/пароль — нужен пароль для внешнего приложения" : m;
+
+  // Проверка подключения к почте без отправки письма
+  if (body.check) {
+    if (!smtpUser || !smtpPass) return json({ error: "Почта не настроена: нет SMTP_USER / SMTP_PASS в Supabase" }, 500);
+    try { await mkTransport().verify(); }
+    catch (e) { return json({ error: "Почтовый сервер отказал: " + authHint(String((e as Error)?.message ?? e)) }, 502); }
+    return json({ ok: true, user: smtpUser });
+  }
+
   const leadId = String(body.leadId ?? "");
+  const campaign = String(body.campaign ?? "").slice(0, 120);
   const to = String(body.to ?? "").trim();
   const subject = String(body.subject ?? "").trim() || "Project LAN";
   const text = String(body.text ?? "").trim();
@@ -44,17 +64,9 @@ Deno.serve(async (req) => {
   if (String(lead.email ?? "").trim().toLowerCase() !== to.toLowerCase())
     return json({ error: "Адрес не совпадает с email в карточке лида" }, 400);
 
-  const smtpUser = Deno.env.get("SMTP_USER")?.trim(), smtpPass = Deno.env.get("SMTP_PASS")?.trim();
-  console.log("smtp config", { user: smtpUser ?? null, hasPass: !!smtpPass, passLen: smtpPass?.length ?? 0, host: Deno.env.get("SMTP_HOST") || "smtp.mail.ru" });
+  console.log("smtp config", { user: smtpUser ?? null, hasPass: !!smtpPass });
   if (!smtpUser || !smtpPass) return json({ error: "Почта не настроена: нет SMTP_USER / SMTP_PASS в Supabase" }, 500);
-
-  const transport = nodemailer.createTransport({
-    host: Deno.env.get("SMTP_HOST") || "smtp.mail.ru",
-    port: Number(Deno.env.get("SMTP_PORT") || 465),
-    secure: true,
-    connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 20000,
-    auth: { user: smtpUser, pass: smtpPass },
-  });
+  const transport = mkTransport();
   try {
     await transport.sendMail({
       from: { name: Deno.env.get("SMTP_FROM_NAME") || "Project LAN", address: smtpUser },
@@ -63,14 +75,12 @@ Deno.serve(async (req) => {
   } catch (e) {
     const m = String((e as Error)?.message ?? e);
     console.error("smtp failure", m);
-    const hint = /auth|535|invalid login|password/i.test(m)
-      ? "почта не приняла логин/пароль — нужен пароль для внешнего приложения" : m;
-    return json({ error: "Почтовый сервер отказал: " + hint }, 502);
+    return json({ error: "Почтовый сервер отказал: " + authHint(m) }, 502);
   }
 
   const now = Date.now();
   const patch: Record<string, unknown> = {
-    messages: [...(lead.messages ?? []), { t: now, by: user.email, ch: "email", to, subject, text }],
+    messages: [...(lead.messages ?? []), { t: now, by: user.email, ch: "email", to, subject, text, ...(campaign ? { campaign } : {}) }],
     updatedAt: now, updatedBy: user.email,
   };
   if (["new", "scored", "approved"].includes(lead.status)) {

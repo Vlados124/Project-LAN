@@ -177,6 +177,18 @@ td .sub{color:var(--ink3);font-size:12px;max-width:34ch;white-space:nowrap;overf
 .panel h3{margin:0 0 12px;font-size:14px;font-weight:600}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
 .two>.panel{margin-bottom:0}
+.mlist{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+.mlist label{display:grid;grid-template-columns:auto minmax(0,1.2fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+.mlist label:last-child{border-bottom:0}
+.mlist label.off{opacity:.5}
+.mlist .em{color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:600px){.mlist label{grid-template-columns:auto minmax(0,1fr)}.mlist .em,.mlist .x{grid-column:2}}
+.mprev{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px;white-space:pre-wrap;line-height:1.5;margin-top:8px}
+.mprev .sj{font-weight:600;margin-bottom:8px;white-space:normal}
+.mbar{height:8px;background:var(--sunk);border-radius:99px;overflow:hidden;margin:10px 0}
+.mbar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.mlog{font-size:12.5px;color:var(--ink2);max-height:180px;overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.mlog .bad{color:var(--lo)}
 .fun{display:flex;flex-direction:column;gap:7px}
 .fr{display:grid;grid-template-columns:120px minmax(0,1fr) 92px;gap:10px;align-items:center;font-size:13px}
 .fr .bar{height:22px;background:var(--sunk);border-radius:6px;overflow:hidden}
@@ -313,6 +325,7 @@ const ICON={
  board:'<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/>',
  all:'<path d="M3 5h18M3 12h18M3 19h18"/>',
  tasks:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
  metrics:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
  settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'};
 
@@ -421,7 +434,7 @@ function counts(){
 function renderScope(){document.querySelectorAll("#scopeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.scope===scope))}
 function renderRail(){renderScope();
   const c=counts();
-  const items=[["queue","Проверка",c.queue,"hot"],["board","Воронка",c.board],["all","Все лиды",c.all],["tasks","Дела",c.tasks,"warn"],null,["metrics","Метрики"],["settings","Настройки"]];
+  const items=[["queue","Проверка",c.queue,"hot"],["board","Воронка",c.board],["all","Все лиды",c.all],["tasks","Дела",c.tasks,"warn"],["mail","Рассылка",ml.run?(ml.run.mode==="auto"?`${ml.run.sent}/${ml.run.q.length}`:null):null,"hot"],null,["metrics","Метрики"],["settings","Настройки"]];
   $("#rail").innerHTML=items.map(it=>it?`<button data-view="${it[0]}" class="${view===it[0]?"on":""}"><svg viewBox="0 0 24 24">${ICON[it[0]]}</svg>${it[1]}${it[2]!=null&&loaded?`<span class="cnt ${it[2]&&it[3]?it[3]:""}">${it[2]}</span>`:""}</button>`:"<hr>").join("")
    +`<div class="foot">${myId?esc(myId)+'<br><button class="btn sm ghost" style="padding:0;height:auto;color:var(--ink3);text-decoration:underline" data-act="logout">Выйти</button>':""}</div>`;
 }
@@ -434,7 +447,7 @@ function softRender(){
 function render(){renderRail();renderMain();renderDrawer()}
 function renderMain(){
   pend.main=false;
-  const V={queue:vQueue,board:vBoard,all:vAll,tasks:vTasks,metrics:vMetrics,settings:vSettings}[view]||vQueue;
+  const V={queue:vQueue,board:vBoard,all:vAll,tasks:vTasks,mail:vMail,metrics:vMetrics,settings:vSettings}[view]||vQueue;
   $("#main").innerHTML=(banner?`<div class="banner">${esc(banner)}</div>`:"")+(loaded||view==="settings"?V():'<div class="empty"><h3>Загружаю базу…</h3></div>');
 }
 function emptyAll(){
@@ -481,6 +494,135 @@ function vBoard(){
     </article>`).join(""):'<div class="empty-col">Перетащите карточку сюда</div>'}</div></section>`}).join("");
   return`<div class="ph"><div><h1>Воронка</h1><p>Перетаскивайте карточки между этапами. Клик открывает лида целиком.</p></div></div>${scopeNote(l=>BOARD.includes(l.status))}<div class="board">${cols}</div>`;
 }
+
+/* Рассылка */
+const EMAIL_RE=/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
+let ml={src:"",seg:"",stage:"fresh",days:3,own:"",excl:new Set(),tpl:-1,subject:"",text:"",prev:0,name:"",limit:40,gap:30,smtp:null,run:null};
+const DAY=864e5;
+function mlAud(){
+  const now=Date.now();
+  return leads.filter(l=>{
+    if(!EMAIL_RE.test(String(l.email||"").trim()))return false;
+    if(["lost","rejected","won","deal"].includes(l.status)||["refused","agreed","interest"].includes(l.resp))return false;
+    if(ml.src&&l.source!==ml.src)return false;
+    if(ml.seg&&l.segment!==ml.seg)return false;
+    if(ml.own&&(ml.own==="none"?l.owner:l.owner!==ml.own))return false;
+    if(!inScope(l))return false;
+    const ts=touchesOf(l);
+    if(ml.stage==="fresh")return!ts.length;
+    if(ml.stage==="followup"){const em=ts.filter(x=>x.ch==="email");if(!em.length)return false;return now-ts[ts.length-1].t>=ml.days*DAY}
+    return true});
+}
+function mlSel(){return mlAud().filter(l=>!ml.excl.has(l.id))}
+function mlFill(t,l){return fillTpl(t||"",l)}
+function mlInitTpl(){if(ml.tpl<0){const i=tpls().findIndex(t=>/первое/i.test(t.name));ml.tpl=i<0?0:i;const t=tpls()[ml.tpl]||{};ml.subject=t.subject||"";ml.text=t.text||""}if(!ml.name)ml.name="Рассылка "+new Date().toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit"})}
+function vMail(){
+  mlInitTpl();
+  const r=ml.run;
+  if(r)return mlRunView();
+  const aud=mlAud(),sel=aud.filter(l=>!ml.excl.has(l.id));
+  const opt=(arr,v,lbl)=>`<option value="">${lbl}</option>`+arr.map(([k,t])=>`<option value="${esc(k)}" ${v===k?"selected":""}>${esc(t)}</option>`).join("");
+  const srcs=[...new Set(leads.map(l=>l.source).filter(Boolean))],segs=[...new Set(leads.filter(l=>!ml.src||l.source===ml.src).map(l=>l.segment).filter(Boolean))];
+  const pl=sel[Math.min(ml.prev,Math.max(sel.length-1,0))];
+  const br=/\[[^\]]*\]/.test(ml.text+ml.subject);
+  const sm=ml.smtp;
+  const smLine=!sm?`<span class="hint">Отправку через CRM нужно проверить один раз.</span><button class="btn sm" data-act="mlcheck">Проверить почту</button>`
+    :sm.busy?`<span class="hint">Проверяю подключение к почте…</span>`
+    :sm.ok?`<span class="chip" style="color:var(--hi)"><span class="dot"></span><span style="color:var(--ink2)">Почта подключена: ${esc(sm.user||"")}</span></span>`
+    :`<div class="warnbox" style="flex:1"><b>Через CRM отправлять пока нельзя.</b><span>${esc(sm.msg||"")}</span><span>Пока можно отправлять вручную по очереди — ниже кнопка «Отправлять вручную».</span></div><button class="btn sm" data-act="mlcheck">Проверить ещё раз</button>`;
+  return`<div class="ph"><div><h1>Рассылка</h1><p>Выберите, кому писать, проверьте письмо и отправьте. Каждое письмо уходит отдельно, с обращением по имени, и записывается в карточку лида.</p></div></div>
+  ${scopeNote(()=>true)}
+  <div class="panel"><h3>1. Кому</h3>
+    <div class="filters" style="margin-bottom:0">
+      <div class="seg">${[["fresh","Ещё не писали"],["followup","Писали, ответа нет"],["any","Все с почтой"]].map(([k,t])=>`<button data-act="mlstage" data-v="${k}" class="${ml.stage===k?"on":""}">${t}</button>`).join("")}</div>
+      ${ml.stage==="followup"?`<label class="hint" style="display:flex;align-items:center;gap:6px">прошло дней ≥ <input id="ml_days" type="number" min="1" max="60" value="${ml.days}" style="width:60px" class="f"></label>`:""}
+      <select class="f" data-ml="src">${opt(srcs.map(x=>[x,x]),ml.src,"Все источники")}</select>
+      <select class="f" data-ml="seg">${opt(segs.map(x=>[x,x]),ml.seg,"Все сегменты")}</select>
+      <select class="f" data-ml="own">${opt([["none","Без ответственного"],...TEAM.map(e=>[e,e===myId?e+" (вы)":e])],ml.own,"Ответственный: все")}</select>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:center"><b>Выбрано: ${sel.length}</b><span class="hint">из ${aud.length} подходящих</span>
+      <button class="btn sm ghost" data-act="mlall">Выбрать всех</button><button class="btn sm ghost" data-act="mlnone">Снять всех</button></div>
+    <div class="hint" style="margin-top:4px">Не попадают: лиды без почты, с отказом, интересом, согласием или уже в сделке.</div>
+    ${aud.length?`<div class="mlist">${aud.map(l=>`<label class="${ml.excl.has(l.id)?"off":""}"><input type="checkbox" data-mlid="${l.id}" ${ml.excl.has(l.id)?"":"checked"}><span><b>${esc(l.company||"—")}</b>${l.name?` · ${esc(l.name)}`:""}</span><span class="em">${esc(l.email)}</span><span class="x hint">${esc(l.segment||"")}</span></label>`).join("")}</div>`:'<div class="empty" style="padding:20px"><p>Под эти условия никто не подходит.</p></div>'}
+  </div>
+  <div class="panel"><h3>2. Письмо</h3>
+    <div class="row"><select class="f" id="ml_tpl">${tpls().map((t,i)=>`<option value="${i}" ${ml.tpl===i?"selected":""}>${esc(t.name)}</option>`).join("")}</select><span class="hint">Шаблоны можно менять в «Настройках».</span></div>
+    <div class="fld" style="margin-top:10px"><label for="ml_subj">Тема</label><input id="ml_subj" value="${esc(ml.subject)}"></div>
+    <div class="fld" style="margin-top:8px"><label for="ml_text">Текст</label><textarea id="ml_text" style="min-height:220px">${esc(ml.text)}</textarea></div>
+    <div class="hint" style="margin-top:6px">Подставляется автоматически: <b>{приветствие}</b> — «Здравствуйте, Имя!», <b>{компания}</b>, <b>{имя}</b>.</div>
+    ${br?'<div class="warnbox" style="margin-top:8px">В тексте остались поля в квадратных скобках [ … ] — замените их, иначе они уйдут клиентам как есть.</div>':""}
+    ${pl?`<div style="margin-top:14px"><div class="row" style="align-items:center"><b style="font-size:13px">Так увидит ${esc(pl.name||pl.company)}</b><span class="hint">${esc(pl.email)}</span><span style="margin-left:auto" class="row"><button class="btn sm ghost" data-act="mlprev" data-v="-1" ${ml.prev<=0?"disabled":""}>←</button><span class="hint">${Math.min(ml.prev,sel.length-1)+1} / ${sel.length}</span><button class="btn sm ghost" data-act="mlprev" data-v="1" ${ml.prev>=sel.length-1?"disabled":""}>→</button></span></div>
+      <div class="mprev"><div class="sj">${esc(mlFill(ml.subject,pl))}</div>${esc(mlFill(ml.text,pl))}</div></div>`:""}
+  </div>
+  <div class="panel"><h3>3. Отправка</h3>
+    <div class="fld" style="max-width:320px"><label for="ml_name">Название рассылки (для истории)</label><input id="ml_name" value="${esc(ml.name)}"></div>
+    <div class="row" style="margin-top:12px;align-items:center">${smLine}</div>
+    <div class="row" style="margin-top:12px;align-items:center;gap:14px">
+      <label class="hint" style="display:flex;align-items:center;gap:6px">Не больше <input id="ml_limit" type="number" min="1" max="200" value="${ml.limit}" class="f" style="width:64px"> писем за раз</label>
+      <label class="hint" style="display:flex;align-items:center;gap:6px">пауза <input id="ml_gap" type="number" min="10" max="600" value="${ml.gap}" class="f" style="width:64px"> сек между письмами</label></div>
+    <div class="hint" style="margin-top:4px">Чтобы почта не попала в спам, лучше 30–50 писем в день с паузой от 30 секунд. Остальным напишете завтра: они останутся в «Ещё не писали».</div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn pri" data-act="mlauto" ${sel.length&&sm?.ok&&canWrite&&!br?"":"disabled"}>Отправить через CRM (${Math.min(sel.length,ml.limit)})</button>
+      <button class="btn" data-act="mlmanual" ${sel.length&&canWrite?"":"disabled"}>Отправлять вручную по очереди</button></div>
+  </div>`;
+}
+function mlRunView(){
+  const r=ml.run,n=r.q.length,done=r.i,pct=n?Math.round(done/n*100):0;
+  const log=`<div class="mlog">${r.log.slice().reverse().map(x=>`<div class="${x.bad?"bad":""}">${esc(x.t)}</div>`).join("")}</div>`;
+  if(r.mode==="manual"){
+    const l=L(r.q[r.i]);
+    if(!l||r.i>=n)return`<div class="ph"><div><h1>${esc(ml.name)}</h1><p>Готово: отправлено ${r.sent}, пропущено ${r.skip}.</p></div><div class="act"><button class="btn pri" data-act="mlend">К новой рассылке</button></div></div><div class="panel">${log}</div>`;
+    const subj=mlFill(ml.subject,l),txt=mlFill(ml.text,l);
+    const href=`mailto:${encodeURIComponent(l.email.trim())}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(txt)}`;
+    return`<div class="ph"><div><h1>${esc(ml.name)}: вручную</h1><p>${done+1} из ${n} · отправлено ${r.sent}, пропущено ${r.skip}</p></div><div class="act"><button class="btn ghost" data-act="mlend">Закончить</button></div></div>
+    <div class="mbar"><i style="width:${pct}%"></i></div>
+    <div class="panel"><div class="row" style="align-items:center"><b>${esc(l.company||"—")}</b><span>${esc(l.name||"")}</span><span class="hint">${esc(l.email)}</span><button class="btn sm ghost" data-open="${l.id}" style="margin-left:auto">Карточка</button></div>
+      <div class="mprev"><div class="sj">${esc(subj)}</div>${esc(txt)}</div>
+      <ol class="hint" style="margin:10px 0 0;padding-left:18px"><li>«Открыть в почте» — откроется готовое письмо в вашей почтовой программе.</li><li>Отправьте его там.</li><li>Вернитесь сюда и нажмите «Отправил — дальше».</li></ol>
+      <div class="row" style="margin-top:12px"><a class="btn pri" href="${esc(href)}" data-act="mlopen">Открыть в почте</a><button class="btn sm" data-act="mlcopy">Копировать текст</button><button class="btn ok" data-act="mldone">Отправил — дальше</button><button class="btn ghost" data-act="mlskip">Пропустить</button></div></div>
+    <div class="panel"><h3>История</h3>${log}</div>`;
+  }
+  const fin=r.stopped||r.i>=n;
+  return`<div class="ph"><div><h1>${esc(ml.name)}</h1><p>${fin?"Остановлено":r.paused?"На паузе":"Отправляю"} · отправлено ${r.sent} из ${n}${r.fail?`, ошибок ${r.fail}`:""}</p></div>
+    <div class="act">${fin?`<button class="btn pri" data-act="mlend">Готово</button>`:r.paused?`<button class="btn pri" data-act="mlresume">Продолжить</button><button class="btn ghost" data-act="mlstop">Остановить</button>`:`<button class="btn" data-act="mlpause">Пауза</button><button class="btn ghost" data-act="mlstop">Остановить</button>`}</div></div>
+  <div class="mbar"><i style="width:${pct}%"></i></div>
+  ${fin?"":`<div class="warnbox" style="margin-bottom:14px">Не закрывайте эту вкладку, пока идёт отправка: письма уходят из неё. Можно переключаться на другие разделы CRM.${r.next?` Следующее письмо через ~${Math.max(0,Math.round((r.next-Date.now())/1000))} сек.`:""}</div>`}
+  ${r.err?`<div class="warnbox" style="margin-bottom:14px"><b>Отправка остановлена.</b><span>${esc(r.err)}</span></div>`:""}
+  <div class="panel"><h3>Журнал</h3>${log}</div>`;
+}
+async function mlCheck(){
+  ml.smtp={busy:1};if(view==="mail")renderMain();
+  try{const {data,error}=await sb.functions.invoke("send-email",{body:{check:true}});
+    let m="";if(error){m=error.message;try{const j=await error.context?.json?.();if(j?.error)m=j.error}catch(_){}}else if(data?.error)m=data.error;
+    ml.smtp=m?{ok:false,msg:m}:{ok:true,user:data?.user}}
+  catch(e){ml.smtp={ok:false,msg:e.message||String(e)}}
+  if(view==="mail")renderMain();
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function mlAuto(){
+  const r=ml.run;
+  while(r.i<r.q.length&&!r.stopped){
+    if(r.paused){await sleep(500);continue}
+    const id=r.q[r.i],l=L(id);
+    if(!l||!EMAIL_RE.test(String(l.email||"").trim())||touchesOf(l).some(x=>x.t>r.started)){r.log.push({t:`Пропущен: ${l?.company||id}`});r.i++;continue}
+    const subject=mlFill(ml.subject,l),text=mlFill(ml.text,l);
+    let msg="";
+    try{const {data,error}=await sb.functions.invoke("send-email",{body:{leadId:id,to:l.email.trim(),subject,text,campaign:ml.name}});
+      if(error){msg=error.message;try{const j=await error.context?.json?.();if(j?.error)msg=j.error}catch(_){}}
+      else if(data?.error)msg=data.error;else if(data?.patch)Object.assign(l,data.patch)}
+    catch(e){msg=e.message||String(e)}
+    r.i++;
+    if(msg){r.fail++;r.log.push({t:`✕ ${l.company} — ${l.email}: ${msg}`,bad:1});
+      if(/логин|пароль|не настроена|Нужно войти|отказал/i.test(msg)&&r.sent===0||r.fail>=3&&r.fail>r.sent){r.stopped=true;r.err=msg;break}}
+    else{r.sent++;r.log.push({t:`✓ ${l.company} — ${l.email}`})}
+    if(view==="mail")renderMain();renderRail();
+    if(r.i<r.q.length&&!r.stopped){r.next=Date.now()+(ml.gap+Math.random()*ml.gap*0.5)*1000;const tick=setInterval(()=>{if(view==="mail"&&!document.activeElement?.closest?.("#main"))renderMain()},5000);
+      while(Date.now()<r.next&&!r.stopped){await sleep(400);if(r.paused)r.next+=400}clearInterval(tick);r.next=0}
+  }
+  r.stopped=true;if(view==="mail")renderMain();renderRail();
+  toast(`Рассылка «${ml.name}»: отправлено ${r.sent}${r.fail?`, ошибок ${r.fail}`:""}`);
+}
+window.addEventListener("beforeunload",e=>{if(ml.run&&ml.run.mode==="auto"&&!ml.run.stopped){e.preventDefault();e.returnValue=""}});
 
 /* Все лиды */
 function vAll(){
@@ -686,9 +828,10 @@ function openLead(id){openId=id;snd=null;renderDrawer();setTimeout(()=>$("#drawe
 let snd=null;
 const tgNum=p=>{let d=String(p||"").replace(/\D/g,"");if(d.length===11&&d[0]==="8")d="7"+d.slice(1);if(d.length===10)d="7"+d;return d.length>=11?d:""};
 const DEF_TPL=[
- {name:"Первое касание",subject:"Корпоративный киберспортивный турнир для {компания}",text:"{приветствие}\n\nМеня зовут [имя], я из Project LAN — мы организуем корпоративные киберспортивные турниры и игровые мероприятия для сотрудников: от формата и площадки до трансляции и награждения.\n\n[Почему пишем именно вам: ссылка на вашу заявку / публикацию / повод]\n\nМогу коротко рассказать, как это может выглядеть у {компания}, и прислать примеры. Удобно созвониться на 10–15 минут на этой неделе?\n\nС уважением,\n[имя], Project LAN"},
- {name:"Повторное касание",subject:"Re: Корпоративный турнир для {компания}",text:"{приветствие}\n\nНапоминаю о себе — писал(а) вам про корпоративный киберспортивный турнир для сотрудников {компания}.\n\nЕсли тема актуальна, подскажите, пожалуйста, кому удобнее написать или когда вернуться к разговору. Если нет — тоже скажите, не буду отвлекать.\n\nС уважением,\n[имя], Project LAN"},
- {name:"После звонка",subject:"Project LAN — по итогам нашего разговора",text:"{приветствие}\n\nСпасибо за разговор! Как договорились, коротко фиксирую:\n\n• Формат: [ ]\n• Количество участников: [ ]\n• Дата / период: [ ]\n• Следующий шаг: [ ]\n\nВо вложении / по ссылке — [КП / презентация]. Если что-то нужно поправить — напишите.\n\nС уважением,\n[имя], Project LAN"}];
+ {name:"Рассылка: первое письмо",subject:"Вопрос про мероприятия для сотрудников {компания}",text:"{приветствие}\n\nМеня зовут Евгений, я из Project LAN — мы проводим корпоративные турниры по киберспорту для сотрудников.\n\nХотел спросить: кто у вас в {компания} занимается мероприятиями для команды? Если вы — расскажите, пробовали ли когда-нибудь игровые форматы или пока нет.\n\nЕвгений Денисов\nProject LAN\ncorp.projectlan.ru"},
+ {name:"Рассылка: после выставки",subject:"После MICE4U — Project LAN",text:"{приветствие}\n\nЭто Евгений из Project LAN, мы пересекались на MICE4U / BBT Fest. Мы делаем корпоративные киберспортивные турниры — от пары команд в офисе до финала со сценой и трансляцией.\n\nБывают ли у вас (или у ваших клиентов) запросы на такие форматы? Интересно понять, насколько это вообще актуально.\n\nЕвгений Денисов\nProject LAN\ncorp.projectlan.ru"},
+ {name:"Рассылка: напоминание",subject:"Re: Вопрос про мероприятия для сотрудников {компания}",text:"{приветствие}\n\nВозвращаюсь к своему письму — вдруг потерялось. Если тема не к вам, просто подскажите, кому лучше написать.\n\nЕвгений\nProject LAN"},
+ {name:"После звонка",subject:"Project LAN — по итогам нашего разговора",text:"{приветствие}\n\nСпасибо за разговор! Как договорились, коротко фиксирую:\n\n• Формат: [ ]\n• Количество участников: [ ]\n• Дата / период: [ ]\n• Следующий шаг: [ ]\n\nВо вложении / по ссылке — [КП / презентация]. Если что-то нужно поправить — напишите.\n\nЕвгений Денисов\nProject LAN"}];
 const tpls=()=>Array.isArray(cfg.templates)?cfg.templates:DEF_TPL;
 function greet(l){const p=String(l.name||"").trim().split(/\s+/).filter(Boolean);const n=p.length===3?p[1]+" "+p[2]:p.length?p.join(" "):"";return n?`Здравствуйте, ${n}!`:"Здравствуйте!"}
 function fillTpl(t,l){const co=l.company&&l.company!=="Частное лицо"?l.company:"вашей компании";return t.replace(/\{приветствие\}/g,greet(l)).replace(/\{компания\}/g,co).replace(/\{имя\}/g,l.name||"")}
@@ -923,6 +1066,21 @@ document.addEventListener("click",async e=>{
       else if(act==="cfg"){await cfgSet({...cfg,desc:$("#c_desc").value});toast("Описание сохранено")}
       else if(act==="export")await doExport();
       else if(act==="doimport")await doImport();
+      else if(act==="mlstage"){ml.stage=b.dataset.v;ml.excl=new Set();ml.prev=0;renderMain()}
+      else if(act==="mlall"){ml.excl=new Set();renderMain()}
+      else if(act==="mlnone"){ml.excl=new Set(mlAud().map(l=>l.id));renderMain()}
+      else if(act==="mlprev"){ml.prev=Math.max(0,ml.prev+ +b.dataset.v);renderMain()}
+      else if(act==="mlcheck")await mlCheck();
+      else if(act==="mlauto"){const q=mlSel().slice(0,ml.limit).map(l=>l.id);if(!q.length)return;ml.run={mode:"auto",q,i:0,sent:0,fail:0,skip:0,log:[],started:Date.now()};renderMain();mlAuto()}
+      else if(act==="mlmanual"){const q=mlSel().map(l=>l.id);if(!q.length)return;ml.run={mode:"manual",q,i:0,sent:0,fail:0,skip:0,log:[],started:Date.now()};renderMain();window.scrollTo(0,0)}
+      else if(act==="mlopen"){/* ссылка mailto откроется сама */}
+      else if(act==="mlcopy"){const l=L(ml.run.q[ml.run.i]);const t=mlFill(ml.subject,l)+"\n\n"+mlFill(ml.text,l);try{await navigator.clipboard.writeText(t);toast("Текст скопирован")}catch(_){toast("Не удалось скопировать")}}
+      else if(act==="mldone"){const r=ml.run,l=L(r.q[r.i]);if(l){await logMsg(l.id,{ch:"email",to:l.email.trim(),subject:mlFill(ml.subject,l),text:mlFill(ml.text,l),campaign:ml.name,manual:1});r.sent++;r.log.push({t:`✓ ${l.company} — ${l.email}`})}r.i++;renderMain();renderRail()}
+      else if(act==="mlskip"){const r=ml.run,l=L(r.q[r.i]);r.skip++;r.log.push({t:`Пропущен: ${l?.company||""}`});r.i++;renderMain()}
+      else if(act==="mlpause"){ml.run.paused=true;renderMain()}
+      else if(act==="mlresume"){ml.run.paused=false;renderMain()}
+      else if(act==="mlstop"){ml.run.stopped=true;renderMain()}
+      else if(act==="mlend"){if(ml.run&&ml.run.mode==="auto"&&!ml.run.stopped)ml.run.stopped=true;ml.run=null;ml.excl=new Set();ml.prev=0;renderMain();renderRail()}
       else if(act==="clearf"){F={st:"",src:"",seg:"",resp:"",ct:"",own:""};renderMain()}
       else if(act==="del"){const l=L(id);if(l){l._confirmDel=1;renderDrawer()}}
       else if(act==="delno"){const l=L(id);if(l){delete l._confirmDel;renderDrawer()}}
@@ -937,6 +1095,13 @@ document.addEventListener("submit",async e=>{
 document.addEventListener("change",async e=>{
   const el=e.target;
   if(el.dataset.filter){F[el.dataset.filter]=el.value;renderMain();return}
+  if(el.dataset.ml){ml[el.dataset.ml]=el.value;if(el.dataset.ml==="src")ml.seg="";ml.excl=new Set();ml.prev=0;renderMain();return}
+  if(el.dataset.mlid){if(el.checked)ml.excl.delete(el.dataset.mlid);else ml.excl.add(el.dataset.mlid);renderMain();return}
+  if(el.id==="ml_tpl"){ml.tpl=+el.value;const t=tpls()[ml.tpl]||{};ml.subject=t.subject||"";ml.text=t.text||"";renderMain();return}
+  if(el.id==="ml_days"){ml.days=Math.max(1,+el.value||3);ml.excl=new Set();renderMain();return}
+  if(el.id==="ml_limit"){ml.limit=Math.max(1,Math.min(200,+el.value||40));renderMain();return}
+  if(el.id==="ml_gap"){ml.gap=Math.max(10,Math.min(600,+el.value||30));return}
+  if(el.id==="ml_subj"||el.id==="ml_text"){renderMain();return}
   if(el.id==="m_file"&&el.files[0]){previewImport(await el.files[0].text());return}
   if(el.id==="d_tpl"){const id=$("#drawer").dataset.id,l=L(id),t=tpls()[+el.value];if(!l||!t)return;
     const cur=$("#d_draft").value.trim();if(cur&&cur!==String(l.draft||"").trim()){}
@@ -950,6 +1115,9 @@ document.addEventListener("change",async e=>{
 });
 document.addEventListener("input",e=>{
   if(e.target.id==="q"){q=e.target.value.trim();renderMain()}
+  if(e.target.id==="ml_subj")ml.subject=e.target.value;
+  if(e.target.id==="ml_text")ml.text=e.target.value;
+  if(e.target.id==="ml_name")ml.name=e.target.value;
   if(e.target.id==="m_paste"){clearTimeout(previewImport.t);const v=e.target.value;previewImport.t=setTimeout(()=>v.trim()&&previewImport(v),250)}
 });
 document.addEventListener("focusout",()=>setTimeout(()=>{const a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;if(pend.main)renderMain();if(pend.drawer)renderDrawer()},150));
