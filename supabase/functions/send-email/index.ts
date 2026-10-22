@@ -29,7 +29,15 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "Неверный запрос" }, 400); }
-  const smtpUser = Deno.env.get("SMTP_USER")?.trim(), smtpPass = Deno.env.get("SMTP_PASS")?.trim();
+  // Пароль приложения хранится в закрытой таблице app_secrets (доступна только сервисному ключу);
+  // если там пусто — берём из секретов функции.
+  let smtpUser = Deno.env.get("SMTP_USER")?.trim(), smtpPass = Deno.env.get("SMTP_PASS")?.trim();
+  try {
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: sec } = await admin.from("app_secrets").select("key,value").in("key", ["smtp_user", "smtp_pass"]);
+    const m = Object.fromEntries((sec ?? []).map((r: any) => [r.key, String(r.value ?? "").trim()]));
+    if (m.smtp_pass) { smtpPass = m.smtp_pass; if (m.smtp_user) smtpUser = m.smtp_user; }
+  } catch (_) { /* остаёмся на секретах функции */ }
   const mkTransport = () => nodemailer.createTransport({
     host: Deno.env.get("SMTP_HOST") || "smtp.mail.ru",
     port: Number(Deno.env.get("SMTP_PORT") || 465),
