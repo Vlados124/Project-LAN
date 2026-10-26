@@ -431,11 +431,21 @@ function softRender(){
   if(typing&&$("#drawer").contains(a))pend.drawer=true;else renderDrawer();
   renderRail();
 }
+/* Сохранение прокрутки при перерисовке, чтобы страница не «прыгала» */
+const SCROLLERS=".db,.tw,.board,.colb,.src,.mlist,.tlist";
+function keepScroll(root,fn){
+  const els=[...root.querySelectorAll(SCROLLERS)].map((e,i)=>[e.className,i,e.scrollTop,e.scrollLeft]);
+  const wy=window.scrollY,wx=window.scrollX;
+  fn();
+  const now=[...root.querySelectorAll(SCROLLERS)];
+  for(const [cls,i,t,l] of els){const e=now[i];if(e&&e.className===cls){e.scrollTop=t;e.scrollLeft=l}}
+  if(window.scrollY!==wy||window.scrollX!==wx)window.scrollTo(wx,wy);
+}
 function render(){renderRail();renderMain();renderDrawer()}
 function renderMain(){
   pend.main=false;
   const V={queue:vQueue,board:vBoard,all:vAll,tasks:vTasks,metrics:vMetrics,settings:vSettings}[view]||vQueue;
-  $("#main").innerHTML=(banner?`<div class="banner">${esc(banner)}</div>`:"")+(loaded||view==="settings"?V():'<div class="empty"><h3>Загружаю базу…</h3></div>');
+  keepScroll($("#main"),()=>{$("#main").innerHTML=(banner?`<div class="banner">${esc(banner)}</div>`:"")+(loaded||view==="settings"?V():'<div class="empty"><h3>Загружаю базу…</h3></div>')});
 }
 function emptyAll(){
   return`<div class="empty"><h3>Лидов пока нет</h3><p>Перенесите текущую базу из Google Таблицы одним файлом или добавьте первого лида вручную.</p>
@@ -602,7 +612,7 @@ function renderDrawer(){
     +`<button data-act="st" data-id="${l.id}" data-v="lost" class="bad ${s==="lost"?"cur":""}">Отказ</button>`;
   const list=(cls,t,arr)=>arr?.length?`<div><div class="k">${t}</div><ul class="${cls}">${arr.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:"";
   $("#drawer").dataset.id=l.id;
-  $("#drawer").innerHTML=`
+  keepScroll($("#drawer"),()=>{$("#drawer").innerHTML=`
   <div class="dh"><div class="ttl"><input class="name" id="d_company" data-f="company" value="${esc(l.company)}" placeholder="Название компании" ${dis}>
     <div class="row" style="margin-top:6px;gap:6px"><label for="d_own" class="hint">Ответственный</label><select id="d_own" class="f" data-f="owner" ${dis}><option value="">— не назначен —</option>${TEAM.map(e=>`<option value="${esc(e)}" ${l.owner===e?"selected":""}>${esc(e===myId?e+" (вы)":e)}</option>`).join("")}${l.owner&&!TEAM.includes(l.owner)?`<option selected value="${esc(l.owner)}">${esc(l.owner)}</option>`:""}</select>${l.owner!==myId&&canWrite?`<button class="btn sm ghost" data-act="takeme">Взять себе</button>`:""}</div>
     <div class="meta">${stChip(s)}<span class="chip">${esc(l.source||"—")}</span><span class="chip">${esc(l.segment||"—")}</span>${l.createdAt?`<span class="chip num">${ftime(l.createdAt)}</span>`:""}</div>${l.updatedAt?`<div class="hint" style="margin-top:6px">Изменено ${ftime(l.updatedAt)}${l.updatedBy?" · "+esc(who(l.updatedBy)):""}${l.createdBy?" · добавил(а) "+esc(who(l.createdBy)):""}</div>`:l.createdBy?`<div class="hint" style="margin-top:6px">Добавил(а) ${esc(who(l.createdBy))}</div>`:""}</div>
@@ -634,7 +644,7 @@ function renderDrawer(){
     ${l.messages?.length?`<div class="sec"><h4>Отправленные сообщения <span class="num" style="color:var(--ink2)">${l.messages.length}</span></h4><div class="msgs">${l.messages.slice().reverse().map(m=>`<details class="msg"><summary><span class="chip">${m.ch==="email"?"Почта":"Telegram"}</span><span class="num">${ftime(m.t)}</span><span class="mt">${esc(m.subject||m.to||"")}</span><span style="color:var(--ink3)">${esc(who(m.by))}</span></summary><div class="src" style="margin-top:6px">${m.to?`Кому: ${esc(m.to)}\n\n`:""}${esc(m.text)}</div></details>`).join("")}</div></div>`:""}
     ${l.log?.length?`<div class="sec"><h4>История</h4><div class="log">${l.log.slice().reverse().map(e=>`<div><span class="num">${ftime(e.t)}</span><span>${e.r?"Ответ: "+esc(RESP[e.r]||e.r):esc(ST[e.s]||e.s)}${e.undo?" (отмена)":""}</span>${e.by?`<span style="color:var(--ink3)">— ${esc(who(e.by))}</span>`:""}</div>`).join("")}</div></div>`:""}
     ${canWrite?`<div class="sec"><h4>Опасная зона</h4><div class="row">${l._confirmDel?`<span class="err">Удалить лида навсегда?</span><button class="btn sm no" data-act="delyes" data-id="${l.id}">Да, удалить</button><button class="btn sm" data-act="delno">Отмена</button>`:`<button class="btn sm ghost" style="color:var(--lo)" data-act="del">Удалить лида</button>`}</div></div>`:""}
-  </div>`;
+  </div>`});
 }
 function contactSection(l,dis){
   const tn=tgNum(l.phone),ts=touchesOf(l);
