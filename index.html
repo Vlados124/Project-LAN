@@ -392,6 +392,13 @@ const segList=()=>[...new Set([...leads.map(x=>x.segment).filter(Boolean),...SEG
 const srcList=()=>[...new Set([...leads.map(x=>x.source).filter(Boolean),...SRC])].sort((a,b)=>a.localeCompare(b,"ru"));
 function reachOk(l,v){if(!v)return true;const r=reach(l);return v==="em"?r.em:v==="ph"?r.ph:v==="tg"?r.tg:v==="any"?(r.em||r.ph||r.tg):!(r.em||r.ph||r.tg)}
 const REACH=[["em","Есть email"],["ph","Есть телефон"],["tg","Есть Telegram"],["any","Есть любой контакт"],["no","Нет контактов"]];
+/* Тип лида по сегменту: компания-заказчик, агентство, площадка/travel */
+const KIND=[["corp","Компании"],["agency","Агентства"],["venue","Площадки и travel"],["other","Не определено"]];
+const KCOL={corp:"var(--hi)",agency:"var(--accent)",venue:"var(--mid)",other:"var(--ink3)"};
+function kindOf(l){const s=String(l.segment||"").toLowerCase();if(/агентств|mice/.test(s))return"agency";if(/площадк|отел|dmc|travel|поездк/.test(s))return"venue";if(!s||/не определ/.test(s))return"other";return"corp"}
+const KONE={corp:"Компания",agency:"Агентство",venue:"Площадка/travel",other:"Тип не указан"};
+function kindChip(l){const k=kindOf(l);return`<span class="chip" style="color:${KCOL[k]}"><span class="dot"></span><span style="color:var(--ink2)">${KONE[k]}</span></span>`}
+let bKind=lsGet("bkind")||"";
 /* Список лидов текущего экрана — для перехода к следующему/предыдущему из карточки */
 let navList=[];
 function inScope(l){return scope==="mine"?l.owner===myId:scope==="none"?!l.owner:true}
@@ -518,7 +525,7 @@ function vBoard(){
   const t=today();
   const nav=[];
   const cols=BOARD.map(s=>{
-    const items=leads.filter(l=>l.status===s&&match(l)).sort((a,b)=>(a.nextDate||"9")<(b.nextDate||"9")?-1:1);
+    const items=leads.filter(l=>l.status===s&&match(l)&&(!bKind||kindOf(l)===bKind)).sort((a,b)=>(a.nextDate||"9")<(b.nextDate||"9")?-1:1);
     nav.push(...items.map(l=>l.id));
     const sum=items.reduce((a,l)=>a+(+l.amount||0),0);
     return`<section class="col" data-drop="${s}"><div class="colh"><span class="chip" style="color:${SCOL[s]};border:0;background:none;padding:0"><span class="dot"></span></span>${ST[s]} <span class="n">${items.length}</span>${sum?`<span class="sum">${rub(sum)}</span>`:""}</div>
@@ -526,10 +533,12 @@ function vBoard(){
       <div class="t"><b>${esc(l.company||"Без названия")}</b>${scoreEl(l)}</div>
       ${l.nextStep||l.nextDate?`<div class="ns ${l.nextDate&&l.nextDate<t&&ACTIVE.includes(s)?"late":""}">${l.nextDate?`<span class="num">${fdate(l.nextDate)}</span>`:""}<span>${esc(l.nextStep||"")}</span></div>`:(ACTIVE.includes(s)?'<div class="ns" style="color:var(--ink3)">Нет следующего шага</div>':"")}
       ${l.resp||touchesOf(l).length?`<div class="ft">${respChip(l)}${chIcons(l)}${lastTouch(l)?`<span class="num">${fdate(new Date(lastTouch(l).t).toISOString().slice(0,10))}</span>`:""}</div>`:""}
-      <div class="ft">${ownEl(l)}<span>${esc(l.name||l.segment||"")}</span>${l.amount?`<span class="money">${rub(l.amount)}</span>`:""}</div>
+      <div class="ft">${bKind?"":kindChip(l)}${ownEl(l)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name||"")}</span>${l.amount?`<span class="money">${rub(l.amount)}</span>`:""}</div>
     </article>`).join(""):'<div class="empty-col">Перетащите карточку сюда</div>'}</div></section>`}).join("");
   navList=nav;
-  return`<div class="ph"><div><h1>Воронка</h1><p>Перетаскивайте карточки между этапами. Клик открывает лида целиком.</p></div></div>${scopeNote(l=>BOARD.includes(l.status))}<div class="board">${cols}</div>`;
+  const inB=leads.filter(l=>BOARD.includes(l.status)&&match(l));
+  const kseg=`<div class="filters"><div class="seg">${[["","Все",inB.length],...KIND.map(([k,t])=>[k,t,inB.filter(l=>kindOf(l)===k).length])].filter(x=>x[0]===""||x[2]||bKind===x[0]).map(([k,t,n])=>`<button data-bkind="${k}" class="${bKind===k?"on":""}">${k?`<span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${KCOL[k]};margin-right:5px;vertical-align:1px"></span>`:""}${t} <span class="num">${n}</span></button>`).join("")}</div></div>`;
+  return`<div class="ph"><div><h1>Воронка</h1><p>Перетаскивайте карточки между этапами. Клик открывает лида целиком.</p></div></div>${scopeNote(l=>BOARD.includes(l.status))}${kseg}<div class="board">${cols}</div>`;
 }
 
 /* Все лиды */
@@ -953,6 +962,7 @@ async function doExport(){
 document.addEventListener("click",async e=>{
   const v=e.target.closest("[data-view]");if(v){view=v.dataset.view;lsSet("view",view);banner="";renderRail();renderMain();window.scrollTo(0,0);return}
   const sc=e.target.closest("[data-scope]");if(sc){scope=sc.dataset.scope;lsSet("scope",scope);renderRail();renderMain();return}
+  const bk=e.target.closest("[data-bkind]");if(bk){bKind=bk.dataset.bkind;lsSet("bkind",bKind);renderMain();return}
   const qs=e.target.closest("[data-qseg]");if(qs){qSeg=qs.dataset.qseg;renderMain();return}
   const so=e.target.closest("th[data-sort]");if(so){const k=so.dataset.sort;sort=sort.k===k?{k,d:-sort.d}:{k,d:k==="company"?1:-1};renderMain();return}
   const b=e.target.closest("[data-act]");
