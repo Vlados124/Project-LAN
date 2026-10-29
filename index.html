@@ -264,6 +264,12 @@ td.nw{white-space:nowrap}
 .peers a span{color:var(--ink3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .peers a .chip{margin-left:auto;flex:none}
 @media (max-width:520px){.dh{flex-wrap:wrap}.dh .nav{order:-1;width:100%;justify-content:flex-end;margin-bottom:-8px}}
+.rb{display:inline-flex;gap:4px;flex-wrap:nowrap}
+.rb a,.rb span{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:99px;font-size:12px;font-weight:500;white-space:nowrap;text-decoration:none;border:1px solid transparent}
+.rb .em{background:var(--accent-soft);color:var(--accent)}
+.rb .ph{background:var(--hi-soft);color:var(--hi)}
+.rb .tg{background:color-mix(in srgb,#2a9fd6 14%,var(--surface));color:#2a9fd6}
+.rb .no{color:var(--ink3);border-color:var(--line);border-style:dashed}
 .kbdh{font:11px var(--f-num);color:var(--ink3);border:1px solid var(--line);border-radius:4px;padding:0 4px}
 
 /* modal */
@@ -390,6 +396,11 @@ function reach(l){return{em:!!String(l.email||"").includes("@"),ph:!!tgNum(l.pho
 function reachEl(l){const r=reach(l);return`<span class="reach" title="${[r.em?"есть email":"",r.ph?"есть телефон":"",r.tg?"есть Telegram":""].filter(Boolean).join(", ")||"нет контактов"}">${ico("email",13).replace('class="ico"',`class="ico ${r.em?"on":""}"`)}${ico("call",13).replace('class="ico"',`class="ico ${r.ph?"on":""}"`)}${ico("tg",13).replace('class="ico"',`class="ico ${r.tg?"on":""}"`)}</span>`}
 const segList=()=>[...new Set([...leads.map(x=>x.segment).filter(Boolean),...SEG])].sort((a,b)=>a.localeCompare(b,"ru"));
 const srcList=()=>[...new Set([...leads.map(x=>x.source).filter(Boolean),...SRC])].sort((a,b)=>a.localeCompare(b,"ru"));
+function reachBadges(l){const r=reach(l),u=tgUser(l),b=[];
+  if(r.em)b.push(`<span class="em" title="${esc(l.email)}">${ico("email",12)} Почта</span>`);
+  if(r.ph)b.push(`<span class="ph" title="${esc(l.phone)}">${ico("call",12)} Телефон</span>`);
+  if(r.tg)b.push(`<span class="tg" title="@${esc(u)}">${ico("tg",12)} Telegram</span>`);
+  return`<div class="rb">${b.join("")||'<span class="no">нет контактов</span>'}</div>`}
 function reachOk(l,v){if(!v)return true;const r=reach(l);return v==="em"?r.em:v==="ph"?r.ph:v==="tg"?r.tg:v==="any"?(r.em||r.ph||r.tg):!(r.em||r.ph||r.tg)}
 const REACH=[["em","Есть email"],["ph","Есть телефон"],["tg","Есть Telegram"],["any","Есть любой контакт"],["no","Нет контактов"]];
 /* Тип лида по сегменту: компания-заказчик, агентство, площадка/travel */
@@ -546,7 +557,7 @@ function vAll(){
   if(!leads.length)return emptyAll();
   let list=leads.filter(l=>match(l)&&(!F.st||l.status===F.st)&&(!F.src||l.source===F.src)&&(!F.seg||l.segment===F.seg)
     &&(!F.own||(F.own==="none"?!l.owner:l.owner===F.own))&&(!F.resp||(F.resp==="none"?!l.resp:l.resp===F.resp))&&(!F.ct||(F.ct==="no"?!touchesOf(l).length:F.ct==="any"?touchesOf(l).length:touchesOf(l).some(x=>x.ch===F.ct)))&&reachOk(l,F.reach));
-  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>l.nextDate||"9999",touch:l=>lastTouch(l)?.t||0,owner:l=>(l.owner||"~").toLowerCase(),resp:l=>["agreed","interest","noanswer","refused"].indexOf(l.resp)>>>0,amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0}[sort.k];
+  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>l.nextDate||"9999",touch:l=>lastTouch(l)?.t||0,owner:l=>(l.owner||"~").toLowerCase(),resp:l=>["agreed","interest","noanswer","refused"].indexOf(l.resp)>>>0,amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0,reach:l=>{const r=reach(l);return(r.em?4:0)+(r.ph?2:0)+(r.tg?1:0)}}[sort.k];
   list.sort((a,b)=>{const x=key(a),y=key(b);return(x<y?-1:x>y?1:0)*sort.d});
   navList=list.map(l=>l.id);
   const opt=(arr,v,lbl)=>`<option value="">${lbl}</option>`+arr.map(([k,t])=>`<option value="${esc(k)}" ${v===k?"selected":""}>${esc(t)}</option>`).join("");
@@ -554,8 +565,8 @@ function vAll(){
   const th=(k,t,c="")=>`<th data-sort="${k}" class="${c}">${t}${sort.k===k?(sort.d>0?" ↑":" ↓"):""}</th>`;
   return`<div class="ph"><div><h1>Все лиды</h1><p>${list.length} из ${leads.length}. Сортировка по клику на заголовок.</p></div><div class="act"><button class="btn" data-act="export" ${dl?"":"disabled"}>Выгрузить CSV</button></div></div>
   ${scopeNote(()=>true)}<div class="filters"><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select><select class="f" id="fct" data-filter="ct">${opt([["no","Ещё не связывались"],["any","Связывались"],["email","Связывались по почте"],["messenger","В мессенджере"],["call","Звонили"]],F.ct,"Связь: любая")}</select><select class="f" id="fown" data-filter="own">${opt([["none","Без ответственного"],...TEAM.map(e=>[e,e===myId?e+" (вы)":e])],F.own,"Ответственный: все")}</select><select class="f" id="fresp" data-filter="resp">${opt([["none","Без ответа (не отмечен)"],...Object.entries(RESP)],F.resp,"Ответ: любой")}</select><select class="f" id="freach" data-filter="reach">${opt(REACH,F.reach,"Контакты: любые")}</select>${F.st||F.src||F.seg||F.ct||F.resp||F.own||F.reach?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
-  <div class="tw"><table><thead><tr>${th("company","Компания")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}${th("owner","Ответств.")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
-  ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(l.company||"—")}</div><div class="sub2" style="margin-top:2px">${reachEl(l)}<span class="sub">${esc([l.name,l.phone].filter(Boolean).join(" · ")||l.contact||l.segment||"")}</span></div></td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td>${ownEl(l,true)}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="11" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
+  <div class="tw"><table><thead><tr>${th("company","Компания")}${th("reach","Контакты")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}${th("owner","Ответств.")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
+  ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(l.company||"—")}</div><div class="sub">${esc(l.name||(l.contact||"").split(" · ")[0]||l.segment||"")}</div></td><td>${reachBadges(l)}</td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td>${ownEl(l,true)}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="12" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
   </tbody></table></div>`;
 }
 
