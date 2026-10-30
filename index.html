@@ -429,7 +429,7 @@ async function loadTeam(){try{const {data}=await sb.from("members").select("emai
   const seen=new Set(TEAM.map(e=>e.toLowerCase()));leads.forEach(l=>[l.owner,l.createdBy].forEach(e=>{if(e&&!seen.has(e.toLowerCase())){seen.add(e.toLowerCase());TEAM.push(e)}}));
   if(myId&&!seen.has(myId.toLowerCase()))TEAM.unshift(myId);renderMain();renderDrawer()}
 let cacheT=null;
-function saveCache(){clearTimeout(cacheT);cacheT=setTimeout(()=>{try{if(myId&&loaded)localStorage.setItem("lan_cache_"+myId,JSON.stringify({t:Date.now(),cfg,leads:leads.map(({_confirmDel,...l})=>l)}))}catch(e){}},800)}
+function saveCache(){clearTimeout(cacheT);cacheT=setTimeout(()=>{try{if(myId&&loaded)localStorage.setItem("lan_cache_"+myId,JSON.stringify({t:Date.now(),cfg,leads:leads.map(({_confirmDel,...l})=>l)}))}catch(e){/* не влезло в память браузера — убираем старую копию, чтобы не показывать устаревшую базу */try{localStorage.removeItem("lan_cache_"+myId)}catch(_){}}},800)}
 function clearCache(){try{Object.keys(localStorage).filter(k=>k.startsWith("lan_cache_")).forEach(k=>localStorage.removeItem(k))}catch(e){}}
 function showLogin(){db=null;leads=[];loaded=false;document.body.classList.add("auth");$("#login").hidden=false;$("#drawerWrap").hidden=true;setTimeout(()=>$("#l_em")?.focus(),0)}
 async function start(ses){
@@ -442,13 +442,18 @@ async function start(ses){
   const CK="lan_cache_"+myId;let cached=false;
   try{const c=JSON.parse(localStorage.getItem(CK)||"null");if(c?.leads?.length){leads=c.leads.filter(l=>!l.archived);if(c.cfg)cfg=c.cfg;loaded=true;cached=true;banner="";render()}}catch(e){}
   // Загрузка маленькими порциями: крупные ответы от зарубежных серверов у части провайдеров зависают
-  let all=[],from=0,done=false;const STEP=8;
+  // Порции подбираются сами: начинаем со 100, при зависании/ошибке уменьшаем до 8
+  let all=[],from=0,done=false,STEP=100;
   const slow=setTimeout(()=>{if(!done){banner=cached?"Обновляю базу — сеть отвечает медленно. Показана копия от последнего входа.":"Сеть отвечает медленно, загружаю лидов по частям… Если долго — включите VPN.";softRender()}},6000);
   for(let tries=0;;){
-    const {data,error}=await sb.from("leads").select("id,data").order("id").range(from,from+STEP-1);
-    if(error){if(++tries<4){await new Promise(r=>setTimeout(r,1500*tries));continue}banner="Не удалось загрузить базу: "+error.message+". Обновите страницу или включите VPN.";break}
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),15000);
+    let data=null,error=null;
+    try{({data,error}=await sb.from("leads").select("id,data").order("id").range(from,from+STEP-1).abortSignal(ac.signal))}catch(e){error=e}
+    clearTimeout(tm);
+    if(error){if(STEP>8){STEP=Math.max(8,STEP>>2);continue}if(++tries<4){await new Promise(r=>setTimeout(r,1500*tries));continue}banner="Не удалось загрузить базу: "+(error.message||"нет связи")+". Обновите страницу или включите VPN.";break}
     tries=0;all=all.concat(data);
     if(!cached){leads=all.filter(r=>!r.data?.archived).map(r=>({id:r.id,...r.data}));loaded=true;softRender()}
+    else if(all.length>=200){banner=`Обновляю базу: загружено ${all.length}…`;renderMain()}
     if(data.length<STEP){done=true;break}from+=STEP}
   clearTimeout(slow);
   if(done){const fresh=all.filter(r=>!r.data?.archived).map(r=>({id:r.id,...r.data})),map=new Map(leads.map(l=>[l.id,l]));
