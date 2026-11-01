@@ -25,17 +25,20 @@ async function getSecret(key: string) {
 async function setSecret(key: string, value: string) {
   await admin.from("app_secrets").upsert({ key, value });
 }
+// Запросы к Telegram идут через базу (pg_net, функции public.tg_request / tg_response):
+// из функций Supabase api.telegram.org не открывается, а из базы — работает.
 async function tgApi(token: string, method: string, body?: unknown) {
-  // До 3 попыток по 12 секунд: соединение с Telegram иногда подвисает
-  for (let i = 0; i < 3; i++) {
-    try {
-      const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}),
-        signal: AbortSignal.timeout(12000),
-      });
-      return await r.json().catch(() => ({ ok: false, description: "bad response" }));
-    } catch (e) {
-      console.error("telegram fetch failed", method, String((e as Error)?.message ?? e));
+  // Связь с Telegram бывает с перебоями — до 3 попыток
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: id, error } = await admin.rpc("tg_request", { p_token: token, p_method: method, p_body: body ?? {} });
+    if (error || id == null) { console.error("tg_request failed", method, error?.message); break; }
+    for (let i = 0; i < 45; i++) {
+      await new Promise((r) => setTimeout(r, i < 10 ? 300 : 500));
+      const { data: res } = await admin.rpc("tg_response", { p_id: id });
+      if (!res) continue;
+      if (res.body) return res.body;
+      console.error("telegram via db failed", method, attempt, res.status, res.timed_out, String(res.error ?? "").slice(0, 120));
+      break;
     }
   }
   return { ok: false, network: true, description: "Не удалось связаться с Telegram" };

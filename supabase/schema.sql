@@ -58,3 +58,32 @@ insert into public.members (email) values
   -- , ('kollega@example.ru')
   -- , ('nachalnik@example.ru')
 on conflict do nothing;
+
+-- 7. Запросы к Telegram через базу (pg_net): функции Supabase не достают до api.telegram.org.
+--    Вызывать может только сервер (service_role). Используется функцией notify.
+create extension if not exists pg_net;
+create or replace function public.tg_request(p_token text, p_method text, p_body jsonb)
+returns bigint language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if p_token !~ '^\d+:[\w-]{20,}$' or p_method !~ '^[A-Za-z]+$' then
+    raise exception 'bad telegram request';
+  end if;
+  return net.http_post(
+    url := 'https://api.telegram.org/bot' || p_token || '/' || p_method,
+    body := coalesce(p_body, '{}'::jsonb),
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    timeout_milliseconds := 15000);
+end $$;
+create or replace function public.tg_response(p_id bigint)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare r record; b jsonb;
+begin
+  select status_code, timed_out, error_msg, content into r from net._http_response where id = p_id;
+  if not found then return null; end if;
+  begin b := r.content::jsonb; exception when others then b := null; end;
+  return jsonb_build_object('status', r.status_code, 'timed_out', r.timed_out, 'error', r.error_msg, 'body', b);
+end $$;
+revoke all on function public.tg_request(text, text, jsonb) from public, anon, authenticated;
+revoke all on function public.tg_response(bigint) from public, anon, authenticated;
+grant execute on function public.tg_request(text, text, jsonb) to service_role;
+grant execute on function public.tg_response(bigint) to service_role;
