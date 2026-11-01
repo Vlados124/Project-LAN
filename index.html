@@ -899,7 +899,7 @@ const PL_STYLE=`Правила текста:
 - В первом сообщении не продавай: цель — начать диалог. Коротко кто мы, один конкретный повод написать именно этой компании, мягкий вопрос в конце.
 - Не выдумывай факты о компании получателя, цены, сроки и кейсы. Чего не знаешь — пометь [уточнить].
 - Подпись: Евгений Денисов, Project LAN, corp.projectlan.ru`;
-const isAgency=l=>/агент|mice|ивент|event|организац\S* мероприят/i.test([l.segment,l.contact,l.company,l.source].join(" "));
+const isAgency=l=>/агентств|\bmice\b|event[- ]?agency/i.test([l.contact,l.company,String(l.text||"").slice(0,400)].join(" "));
 function leadCtx(l){const i=l.intel,m=(l.messages||[]).slice(-2);
   return`Компания: ${l.company||"неизвестна"}
 Контакт: ${[l.name,l.contact].filter(Boolean).join(", ")||"неизвестен"}
@@ -933,7 +933,7 @@ ${(cfg.desc||"").trim()||PL_DESC}
 
 О лиде:
 ${leadCtx(l)}
-Если сведений о компании мало, можешь коротко поискать в интернете. Не выдумывай.
+Если сведений о компании мало — так и напиши, не выдумывай.
 Верни ТОЛЬКО JSON: {"about":"кто они, 1–2 предложения","person":"кто наш собеседник и что ему важно, если известно","hooks":["чем зацепить, 2–3 пункта"],"questions":["вопросы, которые стоит задать, 3–5"],"objections":[{"q":"вероятное возражение","a":"короткий ответ"}],"offer":"что предложить как следующий шаг"}`}
 async function aiDraft(id,kind){const l=L(id);if(!l||!sample||aiBusy[id])return;
   aiBusy[id]=kind;renderDrawer();
@@ -943,13 +943,15 @@ async function aiDraft(id,kind){const l=L(id);if(!l||!sample||aiBusy[id])return;
   catch(e){toast("AI: "+(e.message||e.code))}
   delete aiBusy[id];renderDrawer()}
 async function aiIntel(id){const l=L(id);if(!l||!sample||aiBusy[id])return;
+  // Бесплатный ключ не умеет искать в интернете — ставим в очередь, её разбирает агент по расписанию
+  if(!aiState?.web){await upd(id,{intelQueued:Date.now()});renderDrawer();toast("В очереди: агент найдёт сведения о компании в ближайшие пару часов");return}
   aiBusy[id]="intel";renderDrawer();
   try{const r=await sample.json(intelPrompt(l),{web:true,maxSearch:5});await upd(id,{intel:{...r,at:Date.now()}});toast("Сведения о компании добавлены")}
   catch(e){toast("AI: "+(e.message||e.code))}
   delete aiBusy[id];renderDrawer()}
 async function aiBrief(id){const l=L(id);if(!l||!sample||aiBusy[id])return;
   aiBusy[id]="brief";renderDrawer();
-  try{const r=await sample.json(briefPrompt(l),{web:!l.intel,maxSearch:3});await upd(id,{brief:{...r,at:Date.now()}});toast("Справка к звонку готова")}
+  try{const r=await sample.json(briefPrompt(l),{web:!!aiState?.web&&!l.intel,maxSearch:3});await upd(id,{brief:{...r,at:Date.now()}});toast("Справка к звонку готова")}
   catch(e){toast("AI: "+(e.message||e.code))}
   delete aiBusy[id];renderDrawer()}
 function aiSection(l,dis){
@@ -961,7 +963,7 @@ function aiSection(l,dis){
   const lst=(t,a)=>a?.length?`<div><div class="k">${t}</div><ul>${a.map(v=>`<li>${v}</li>`).join("")}</ul></div>`:"";
   const lnk=(t,u)=>u&&/^https?:\/\//.test(u)?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(t||u)}</a>`:esc(t||"");
   return`<div class="sec"><h4>AI-помощник</h4>
-    <div class="row" style="gap:6px;flex-wrap:wrap">${btn("aidraft","first",isAgency(l)?"Письмо агентству":"Первое письмо")}${btn("aidraft","follow","Напоминание",!!hasMsg)}${btn("aidraft","reply","Ответить клиенту",!!String(l.replyNote||"").trim())}${btn("aidraft","refusal","Ответ на отказ",l.resp==="refused")}${btn("aiintel","","Узнать о компании")}${btn("aibrief","","Справка к звонку")}</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${btn("aidraft","first",isAgency(l)?"Письмо агентству":"Первое письмо")}${btn("aidraft","follow","Напоминание",!!hasMsg)}${btn("aidraft","reply","Ответить клиенту",!!String(l.replyNote||"").trim())}${btn("aidraft","refusal","Ответ на отказ",l.resp==="refused")}${l.intelQueued&&(!i||i.at<l.intelQueued)?`<button class="btn sm" disabled>О компании: в очереди</button>`:btn("aiintel","",i?"Обновить сведения":"Узнать о компании")}${btn("aibrief","","Справка к звонку")}</div>
     <div class="hint" style="margin-top:6px">Черновик появится в блоке «Сообщение клиенту» ниже. Отправляете вы сами. Для «Ответить клиенту» вставьте его ответ в «Заметки».</div>
     ${l.aiNote?`<div class="hint" style="margin-top:6px;color:var(--mid)">Перед отправкой: ${esc(l.aiNote)}</div>`:""}
     ${i?`<details class="ai" style="margin-top:10px" open><summary class="head" style="cursor:pointer"><div><b>О компании</b><span>${[i.industry,i.size,i.city].filter(Boolean).map(esc).join(" · ")||"обновлено "+ftime(i.at)}</span></div></summary><div class="body">
@@ -975,11 +977,14 @@ function aiSection(l,dis){
   </div>`}
 function aiPanel(){const st=aiState;
   if(!st)return`<div class="panel"><h3>AI-помощник</h3><p class="hint">Проверяю…</p></div>`;
+  const prov=st.provider==="gemini"?"Google Gemini, бесплатно":st.provider==="anthropic"?"Claude API":"";
   const body=st.connected
-    ?`<p style="margin:0 0 10px">Подключён (ключ …${esc(st.tail)}${st.by?", добавил(а) "+esc(who(st.by)):""}). В карточке лида есть блок «AI-помощник», в «Проверке» работает AI-оценка.</p><div class="row"><button class="btn ghost" data-act="aioff" ${canWrite?"":"disabled"}>Отключить</button></div>`
-    :`<p class="hint" style="margin:-6px 0 10px">Пишет черновики писем, ответы на отказы и напоминания, находит сведения о компании в интернете, готовит справку к звонку и оценивает новых лидов. Письма всё равно отправляете вы.</p>
-     <ol class="hint" style="margin:0 0 10px;padding-left:18px"><li>Зайдите на <b>console.anthropic.com</b>, пополните баланс (от $5).</li><li>Откройте <b>API Keys → Create Key</b> и скопируйте ключ (начинается с <span class="num">sk-ant-</span>).</li><li>Вставьте его ниже. Ключ хранится на сервере, в браузере его не видно.</li></ol>
-     <div class="row"><div class="fld" style="flex:1;min-width:220px"><input id="ai_key" placeholder="sk-ant-…" autocomplete="off"></div><button class="btn pri" data-act="aisetup" ${canWrite?"":"disabled"}>Подключить</button></div>`;
+    ?`<p style="margin:0 0 10px">Подключён: ${prov} (ключ …${esc(st.tail)}${st.by?", добавил(а) "+esc(who(st.by)):""}). В карточке лида есть блок «AI-помощник», в «Проверке» работает AI-оценка.${st.web?"":" Сведения о компании из интернета собирает агент по расписанию."}</p><div class="row"><button class="btn ghost" data-act="aioff" ${canWrite?"":"disabled"}>Отключить</button></div>`
+    :`<p class="hint" style="margin:-6px 0 10px">Пишет черновики писем, ответы на отказы и напоминания, готовит справку к звонку и оценивает новых лидов. Письма всё равно отправляете вы.</p>
+     <p style="margin:0 0 6px"><b>Бесплатно — Google Gemini:</b></p>
+     <ol class="hint" style="margin:0 0 10px;padding-left:18px"><li>Включите VPN (из России сайт Google AI Studio не открывается) и зайдите на <b>aistudio.google.com</b> под Google-аккаунтом.</li><li>Нажмите <b>Get API key → Create API key</b>. Платёжные данные не вводите — тогда ключ остаётся бесплатным.</li><li>Скопируйте ключ (начинается с <span class="num">AIza</span>) и вставьте ниже. VPN для работы CRM потом не нужен.</li></ol>
+     <p class="hint" style="margin:0 0 10px">Учтите: на бесплатном тарифе Google может использовать тексты запросов для обучения своих моделей. В запрос уходят название компании, имя и должность контакта, заметки. Email и телефоны не отправляются.</p>
+     <div class="row"><div class="fld" style="flex:1;min-width:220px"><input id="ai_key" placeholder="AIza… (или sk-ant-… для платного Claude)" autocomplete="off"></div><button class="btn pri" data-act="aisetup" ${canWrite?"":"disabled"}>Подключить</button></div>`;
   return`<div class="panel"><h3>AI-помощник</h3>${body}${st.msg?`<p class="${st.err?"err":"hint"}" style="margin:8px 0 0">${esc(st.msg)}</p>`:""}</div>`}
 
 /* new lead modal */
