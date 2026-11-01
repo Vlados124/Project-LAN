@@ -96,3 +96,8 @@ grant execute on function public.tg_response(bigint) to service_role;
 -- 9. Ответы клиентов из почты: функция supabase/functions/inbox, пароль приложения с доступом к IMAP
 --    вводится в CRM («Настройки → Ответы клиентов из почты») и хранится в app_secrets (imap_pass).
 --    Расписание: каждые 10 минут, 8:00–22:00 МСК — cron 'lan-inbox-sync' (миграция inbox_sync_schedule).
+
+-- 10. Несколько получателей уведомлений: app_secrets.tg_chat_extra — chat_id через запятую.
+--     public.tg_request дублирует им каждое сообщение, отправленное в основной чат (миграция telegram_extra_recipients).
+--     Добавить человека: он пишет боту /start, затем
+--     update public.app_secrets set value = value || ',<chat_id>' where key = 'tg_chat_extra';
