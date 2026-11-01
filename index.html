@@ -672,6 +672,8 @@ function vSettings(){
    :`<div class="tpls">${tpls().map((t,i)=>`<div class="tpl"><div class="b"><b>${esc(t.name)}</b><div>${esc(t.subject)}</div></div><button class="btn sm" data-act="tpledit" data-i="${i}" ${canWrite?"":"disabled"}>Изменить</button><button class="btn sm ghost" style="color:var(--lo)" data-act="tpldel" data-i="${i}" ${canWrite?"":"disabled"}>Удалить</button></div>`).join("")}</div><div class="row" style="margin-top:10px"><button class="btn" data-act="tpledit" data-i="-1" ${canWrite?"":"disabled"}>Добавить шаблон</button></div>`}</div>
   ${aiPanel()}
   <div style="height:14px"></div>
+  ${inboxPanel()}
+  <div style="height:14px"></div>
   ${tgPanel()}
   <div class="panel"><h3>Мой пароль</h3><div class="row"><div class="fld" style="flex:1;min-width:200px"><input id="c_pw" type="password" autocomplete="new-password" placeholder="Новый пароль, минимум 8 символов"></div><button class="btn" data-act="pw">Сменить</button></div></div>
   <div class="panel"><h3>Горячие клавиши</h3><div class="hint" style="line-height:1.9"><span class="num">/</span> — поиск · <span class="num">N</span> — новый лид · <span class="num">Esc</span> — закрыть карточку · <span class="num">↑ ↓</span> или <span class="num">J K</span> — предыдущий / следующий лид в открытой карточке</div>
@@ -984,6 +986,20 @@ function aiSection(l,dis){
       ${br.about?`<div>${esc(br.about)}</div>`:""}${br.person?`<div><div class="k">Собеседник</div>${esc(br.person)}</div>`:""}${lst("Чем зацепить",(br.hooks||[]).map(esc))}${lst("Что спросить",(br.questions||[]).map(esc))}
       ${lst("Возражения",(br.objections||[]).filter(o=>o&&o.q).map(o=>`<b>${esc(o.q)}</b> — ${esc(o.a||"")}`))}${br.offer?`<div><div class="k">Следующий шаг</div>${esc(br.offer)}</div>`:""}</div></details>`:""}
   </div>`}
+/* ---------- ответы клиентов из почты (функция supabase/functions/inbox) ---------- */
+let inState=null;
+async function inCall(body){const {data,error}=await sb.functions.invoke("inbox",{body});if(error){let m=error.message;try{const j=await error.context?.json?.();if(j?.error)m=j.error}catch(_){}throw new Error(m)}if(data?.error)throw new Error(data.error);return data}
+async function inLoad(){try{inState=await inCall({type:"status"})}catch(e){inState={msg:"Не удалось проверить: "+e.message,err:1}}if(view==="settings")renderMain()}
+function inboxPanel(){const st=inState;
+  if(!st){if(sb&&!inLoad.p){inLoad.p=1;inLoad().finally(()=>inLoad.p=0)}return`<div class="panel"><h3>Ответы клиентов из почты</h3><p class="hint">Проверяю…</p></div>`}
+  const last=st.last?`Последняя проверка: ${ftime(st.last.t)} — ${st.last.ok?(st.last.matched?`новых ответов: ${st.last.matched}`:"новых ответов нет"):"ошибка: "+esc(st.last.error||"")}`:"Ещё не проверялась.";
+  const body=st.configured
+    ?`<p style="margin:0 0 6px">Подключено${st.user?` (${esc(st.user)})`:""}. Каждые 10 минут CRM смотрит входящие: письмо от лида попадает в его «Заметки», лид переходит в «Есть ответ», в Telegram приходит уведомление. Остальная почта не читается и не сохраняется.</p><p class="hint" style="margin:0 0 10px">${last}</p>
+      <div class="row"><button class="btn" data-act="inrun" ${canWrite?"":"disabled"}>Проверить сейчас</button><button class="btn ghost" data-act="inchange">Сменить пароль</button></div>`
+    :`<p class="hint" style="margin:-6px 0 10px">Когда лид отвечает на письмо, ответ сам появится в его карточке и придёт вам в Telegram. Для этого нужен отдельный пароль приложения с доступом к чтению почты: пароль для отправки не подходит.</p>
+     <ol class="hint" style="margin:0 0 10px;padding-left:18px"><li>Откройте почту${st.user?` <b>${esc(st.user)}</b>`:""} → <b>Настройки → Безопасность → Пароли для внешних приложений</b>.</li><li>Нажмите <b>Добавить</b>, придумайте название, например «CRM», и выберите доступ <b>«Полный доступ к Почте (IMAP, POP3, SMTP)»</b>.</li><li>Скопируйте пароль и вставьте ниже. Он хранится на сервере, в браузере его не видно.</li></ol>
+     <div class="row"><div class="fld" style="flex:1;min-width:220px"><input id="in_pass" type="password" placeholder="Пароль приложения" autocomplete="off"></div><button class="btn pri" data-act="insetup" ${canWrite?"":"disabled"}>Подключить</button></div>`;
+  return`<div class="panel"><h3>Ответы клиентов из почты</h3>${body}${st.msg?`<p class="${st.err?"err":"hint"}" style="margin:8px 0 0">${esc(st.msg)}</p>`:""}</div>`}
 function aiPanel(){const st=aiState;
   if(!st)return`<div class="panel"><h3>AI-помощник</h3><p class="hint">Проверяю…</p></div>`;
   const prov=st.provider==="gemini"?"Google Gemini, бесплатно":st.provider==="anthropic"?"Claude API":"";
@@ -1134,6 +1150,9 @@ document.addEventListener("click",async e=>{
       else if(act==="tpldel"){const arr=tpls().filter((_,i)=>i!==+b.dataset.i);await cfgSet({...cfg,templates:arr});renderMain();toast("Шаблон удалён")}
       else if(act==="tgsetup"){b.disabled=true;b.textContent="Подключаю…";try{const r=await tgCall("setup",{token:$("#tg_tok").value.trim(),verified:await tgCheckInBrowser($("#tg_tok").value.trim())});if(r.ok){tgState={connected:true,chat:r.chat,bot:r.bot};const tok=$("#tg_tok")?.value.trim(),v=tok&&r.chat!==undefined?await tgCheckInBrowser(tok).catch(()=>null):null;if(v?.chat)fetch(`https://api.telegram.org/bot${tok}/sendMessage`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:v.chat.id,text:"✅ Project LAN CRM подключена. Сюда будут приходить ответы лидов, сводка дел в 9:00 и отчёты агентов."})}).catch(()=>{});toast("Telegram подключён — проверьте чат")}else if(r.needChat){tgState={connected:false,hasToken:true,bot:r.bot,msg:`Токен принят. Теперь добавьте @${r.bot} в чат команды, напишите там любое сообщение и снова нажмите «Подключить».`}}}catch(e){tgState={...(tgState||{}),connected:false,msg:e.message,err:1}}renderMain()}
       else if(act==="tgtest"){b.disabled=true;try{const r=await tgCall("digest_now");toast(r.skipped?"Дел на сегодня и просроченных нет — сводка пустая":r.ok?"Сводка отправлена в чат":"Не отправилось: "+(r.description||r.error||""))}catch(e){toast(e.message)}b.disabled=false}
+      else if(act==="insetup"){b.disabled=true;b.textContent="Проверяю пароль…";try{await inCall({type:"setup",pass:$("#in_pass").value});toast("Почта подключена — проверяю входящие");inState=null;renderMain();inCall({}).then(r=>{toast(r.matched?.length?`Новых ответов: ${r.matched.length}`:"Новых ответов от лидов нет");inLoad()}).catch(e=>{toast("Проверка почты: "+e.message);inLoad()})}catch(e){inState={...(inState||{}),msg:e.message,err:1};renderMain()}}
+      else if(act==="inrun"){b.disabled=true;b.textContent="Проверяю…";try{const r=await inCall({});toast(r.matched?.length?`Новых ответов: ${r.matched.length} — ${r.matched.join(", ")}`:"Новых ответов от лидов нет")}catch(e){toast("Проверка почты: "+e.message)}inLoad()}
+      else if(act==="inchange"){inState={...inState,configured:false};renderMain()}
       else if(act==="aidraft")aiDraft(id,b.dataset.k);
       else if(act==="aiintel")aiIntel(id);
       else if(act==="aibrief")aiBrief(id);

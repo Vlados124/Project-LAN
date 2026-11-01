@@ -92,3 +92,7 @@ grant execute on function public.tg_response(bigint) to service_role;
 --    Полный текст функции — в миграции weekly_funnel_report (Supabase → Database → Migrations).
 --    Расписание: select cron.schedule('lan-weekly-report', '0 6 * * 1', $$select public.weekly_report(true)$$);
 --    Посмотреть отчёт без отправки: select public.weekly_report(false);
+
+-- 9. Ответы клиентов из почты: функция supabase/functions/inbox, пароль приложения с доступом к IMAP
+--    вводится в CRM («Настройки → Ответы клиентов из почты») и хранится в app_secrets (imap_pass).
+--    Расписание: каждые 10 минут, 8:00–22:00 МСК — cron 'lan-inbox-sync' (миграция inbox_sync_schedule).
