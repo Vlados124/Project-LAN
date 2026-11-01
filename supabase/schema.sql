@@ -87,3 +87,8 @@ revoke all on function public.tg_request(text, text, jsonb) from public, anon, a
 revoke all on function public.tg_response(bigint) from public, anon, authenticated;
 grant execute on function public.tg_request(text, text, jsonb) to service_role;
 grant execute on function public.tg_response(bigint) to service_role;
+
+-- 8. Еженедельный отчёт по воронке в Telegram: public.weekly_report(true), понедельник 9:00 МСК.
+--    Полный текст функции — в миграции weekly_funnel_report (Supabase → Database → Migrations).
+--    Расписание: select cron.schedule('lan-weekly-report', '0 6 * * 1', $$select public.weekly_report(true)$$);
+--    Посмотреть отчёт без отправки: select public.weekly_report(false);
