@@ -106,6 +106,17 @@ Deno.serve(async (req) => {
     let token = String(body.token ?? "").trim();
     if (!token) token = (await getSecret("tg_token")) ?? "";
     if (!/^\d+:[\w-]{20,}$/.test(token)) return json({ error: "Это не похоже на токен бота. Он выглядит так: 123456789:AAH…" }, 400);
+    // Если браузер уже проверил бота (у пользователя Telegram открывается, у сервера — не всегда), доверяем ему
+    const v = body.verified && typeof body.verified.bot === "string" ? body.verified : null;
+    if (v) {
+      await setSecret("tg_token", token);
+      await setSecret("tg_bot", v.bot);
+      if (!v.chat?.id) return json({ ok: false, needChat: true, bot: v.bot });
+      await setSecret("tg_chat", String(v.chat.id));
+      await setSecret("tg_chat_title", String(v.chat.title ?? ""));
+      // Проверочное сообщение отправляет браузер
+      return json({ ok: true, chat: v.chat.title ?? "", bot: v.bot });
+    }
     const me = await tgApi(token, "getMe");
     if (!me.ok) return json({ error: me.network
       ? "Сервер не смог связаться с Telegram. Попробуйте ещё раз через минуту."

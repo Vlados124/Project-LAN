@@ -646,6 +646,15 @@ function tgPanel(){
   return`<div class="panel"><h3>Уведомления в Telegram</h3>${body}</div>`;
 }
 async function tgCall(type,extra){const {data,error}=await sb.functions.invoke("notify",{body:{type,...(extra||{})}});if(error){let m=error.message;try{const j=await error.context?.json?.();if(j?.error)m=j.error}catch(_){}throw new Error(m)}return data}
+// Проверяем бота прямо из браузера: у пользователя Telegram открывается, а у сервера иногда нет
+async function tgCheckInBrowser(token){if(!/^\d+:[\w-]{20,}$/.test(token))return null;
+  const api=async(m,body)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),10000);try{const r=await fetch(`https://api.telegram.org/bot${token}/${m}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{}),signal:c.signal});return await r.json()}finally{clearTimeout(t)}};
+  try{const me=await api("getMe");if(!me.ok)throw new Error(me.error_code===401?"Telegram ответил, что такого токена нет — возьмите действующий в @BotFather → /mybots → API Token.":"Telegram не принял токен: "+(me.description||""));
+    const up=await api("getUpdates",{limit:100,allowed_updates:["message","my_chat_member","channel_post"]});
+    const chats=(up.result||[]).map(u=>u.my_chat_member?.chat||u.message?.chat||u.channel_post?.chat).filter(Boolean);
+    const chat=chats.reverse().find(c=>c.type!=="private")||chats[0];
+    return{bot:me.result.username,chat:chat?{id:String(chat.id),title:chat.title||[chat.first_name,chat.last_name].filter(Boolean).join(" ")}:null}}
+  catch(e){if(e.name==="AbortError"||e instanceof TypeError)return null;throw e}}
 async function tgLoad(){try{tgState=await tgCall("status")}catch(e){tgState={connected:false,msg:"Не удалось проверить: "+e.message,err:1}}if(view==="settings")renderMain()}
 function vSettings(){
   if(!tgState&&sb)tgLoad();
@@ -1123,7 +1132,7 @@ document.addEventListener("click",async e=>{
       else if(act==="tplcancel"){tplEdit=null;renderMain()}
       else if(act==="tplsave"){const t={name:$("#t_name").value.trim()||"Без названия",subject:$("#t_subj").value.trim(),text:$("#t_text").value};const arr=[...tpls()];if(tplEdit.i<0)arr.push(t);else arr[tplEdit.i]=t;await cfgSet({...cfg,templates:arr});tplEdit=null;renderMain();toast("Шаблон сохранён")}
       else if(act==="tpldel"){const arr=tpls().filter((_,i)=>i!==+b.dataset.i);await cfgSet({...cfg,templates:arr});renderMain();toast("Шаблон удалён")}
-      else if(act==="tgsetup"){b.disabled=true;b.textContent="Подключаю…";try{const r=await tgCall("setup",{token:$("#tg_tok").value.trim()});if(r.ok){tgState={connected:true,chat:r.chat,bot:r.bot};toast("Telegram подключён — проверьте чат")}else if(r.needChat){tgState={connected:false,hasToken:true,bot:r.bot,msg:`Токен принят. Теперь добавьте @${r.bot} в чат команды, напишите там любое сообщение и снова нажмите «Подключить».`}}}catch(e){tgState={...(tgState||{}),connected:false,msg:e.message,err:1}}renderMain()}
+      else if(act==="tgsetup"){b.disabled=true;b.textContent="Подключаю…";try{const r=await tgCall("setup",{token:$("#tg_tok").value.trim(),verified:await tgCheckInBrowser($("#tg_tok").value.trim())});if(r.ok){tgState={connected:true,chat:r.chat,bot:r.bot};const tok=$("#tg_tok")?.value.trim(),v=tok&&r.chat!==undefined?await tgCheckInBrowser(tok).catch(()=>null):null;if(v?.chat)fetch(`https://api.telegram.org/bot${tok}/sendMessage`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:v.chat.id,text:"✅ Project LAN CRM подключена. Сюда будут приходить ответы лидов, сводка дел в 9:00 и отчёты агентов."})}).catch(()=>{});toast("Telegram подключён — проверьте чат")}else if(r.needChat){tgState={connected:false,hasToken:true,bot:r.bot,msg:`Токен принят. Теперь добавьте @${r.bot} в чат команды, напишите там любое сообщение и снова нажмите «Подключить».`}}}catch(e){tgState={...(tgState||{}),connected:false,msg:e.message,err:1}}renderMain()}
       else if(act==="tgtest"){b.disabled=true;try{const r=await tgCall("digest_now");toast(r.skipped?"Дел на сегодня и просроченных нет — сводка пустая":r.ok?"Сводка отправлена в чат":"Не отправилось: "+(r.description||r.error||""))}catch(e){toast(e.message)}b.disabled=false}
       else if(act==="aidraft")aiDraft(id,b.dataset.k);
       else if(act==="aiintel")aiIntel(id);
