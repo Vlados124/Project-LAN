@@ -26,10 +26,19 @@ async function setSecret(key: string, value: string) {
   await admin.from("app_secrets").upsert({ key, value });
 }
 async function tgApi(token: string, method: string, body?: unknown) {
-  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}),
-  });
-  return await r.json().catch(() => ({ ok: false, description: "bad response" }));
+  // До 3 попыток по 12 секунд: соединение с Telegram иногда подвисает
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}),
+        signal: AbortSignal.timeout(12000),
+      });
+      return await r.json().catch(() => ({ ok: false, description: "bad response" }));
+    } catch (e) {
+      console.error("telegram fetch failed", method, String((e as Error)?.message ?? e));
+    }
+  }
+  return { ok: false, network: true, description: "Не удалось связаться с Telegram" };
 }
 async function send(text: string) {
   const token = await getSecret("tg_token"), chat = await getSecret("tg_chat");
@@ -95,7 +104,11 @@ Deno.serve(async (req) => {
     if (!token) token = (await getSecret("tg_token")) ?? "";
     if (!/^\d+:[\w-]{20,}$/.test(token)) return json({ error: "Это не похоже на токен бота. Он выглядит так: 123456789:AAH…" }, 400);
     const me = await tgApi(token, "getMe");
-    if (!me.ok) return json({ error: "Telegram не принял токен. Скопируйте его из @BotFather ещё раз." }, 400);
+    if (!me.ok) return json({ error: me.network
+      ? "Сервер не смог связаться с Telegram. Попробуйте ещё раз через минуту."
+      : me.error_code === 401
+        ? "Telegram ответил, что такого токена нет. Если вы делали /revoke в @BotFather, вставьте новый токен из его последнего сообщения."
+        : "Telegram не принял токен: " + (me.description ?? "неизвестная ошибка") }, 400);
     await setSecret("tg_token", token);
     await setSecret("tg_bot", me.result.username);
     const up = await tgApi(token, "getUpdates", { limit: 100, allowed_updates: ["message", "my_chat_member", "channel_post"] });
