@@ -434,7 +434,7 @@ function clearCache(){try{Object.keys(localStorage).filter(k=>k.startsWith("lan_
 function showLogin(){db=null;leads=[];loaded=false;document.body.classList.add("auth");$("#login").hidden=false;$("#drawerWrap").hidden=true;setTimeout(()=>$("#l_em")?.focus(),0)}
 async function start(ses){
   if(db)return;db=sb;myId=ses.user.email;
-  document.body.classList.remove("auth");$("#login").hidden=true;render();
+  document.body.classList.remove("auth");$("#login").hidden=true;render();aiLoad();
   const onRow=p=>{if(p.eventType==="DELETE"||p.new?.data?.archived){leads=leads.filter(l=>l.id!==(p.old?.id||p.new?.id))}else{const r=p.new,i=leads.findIndex(l=>l.id===r.id),v={id:r.id,...r.data};if(i<0)leads.push(v);else{const keep=leads[i]._confirmDel;leads[i]=v;if(keep)v._confirmDel=keep}}softRender();saveCache()};
   sb.channel("lan").on("postgres_changes",{event:"*",schema:"public",table:"leads"},onRow)
     .on("postgres_changes",{event:"*",schema:"public",table:"config"},p=>{if(p.new?.id==="lan"){cfg=p.new.data||{desc:""};if(view==="settings")softRender()}}).subscribe();
@@ -661,6 +661,8 @@ function vSettings(){
   <div class="panel"><h3>Шаблоны писем</h3><p class="hint" style="margin:-6px 0 12px">Вставляются в карточке лида в один клик. Подстановки: <span class="num">{приветствие}</span> — «Здравствуйте, Имя Отчество!», <span class="num">{компания}</span>, <span class="num">{имя}</span>. Текст в [квадратных скобках] — напоминание заполнить вручную.</p>
    ${tplEdit?`<div class="tpls"><div class="fld"><label for="t_name">Название</label><input id="t_name" value="${esc(tplEdit.name)}"></div><div class="fld"><label for="t_subj">Тема</label><input id="t_subj" value="${esc(tplEdit.subject)}"></div><div class="fld"><label for="t_text">Текст</label><textarea id="t_text" style="min-height:200px">${esc(tplEdit.text)}</textarea></div><div class="row"><button class="btn pri" data-act="tplsave">Сохранить шаблон</button><button class="btn ghost" data-act="tplcancel">Отмена</button></div></div>`
    :`<div class="tpls">${tpls().map((t,i)=>`<div class="tpl"><div class="b"><b>${esc(t.name)}</b><div>${esc(t.subject)}</div></div><button class="btn sm" data-act="tpledit" data-i="${i}" ${canWrite?"":"disabled"}>Изменить</button><button class="btn sm ghost" style="color:var(--lo)" data-act="tpldel" data-i="${i}" ${canWrite?"":"disabled"}>Удалить</button></div>`).join("")}</div><div class="row" style="margin-top:10px"><button class="btn" data-act="tpledit" data-i="-1" ${canWrite?"":"disabled"}>Добавить шаблон</button></div>`}</div>
+  ${aiPanel()}
+  <div style="height:14px"></div>
   ${tgPanel()}
   <div class="panel"><h3>Мой пароль</h3><div class="row"><div class="fld" style="flex:1;min-width:200px"><input id="c_pw" type="password" autocomplete="new-password" placeholder="Новый пароль, минимум 8 символов"></div><button class="btn" data-act="pw">Сменить</button></div></div>
   <div class="panel"><h3>Горячие клавиши</h3><div class="hint" style="line-height:1.9"><span class="num">/</span> — поиск · <span class="num">N</span> — новый лид · <span class="num">Esc</span> — закрыть карточку · <span class="num">↑ ↓</span> или <span class="num">J K</span> — предыдущий / следующий лид в открытой карточке</div>
@@ -699,6 +701,7 @@ function renderDrawer(){
      ${a?`<div class="ai"><div class="head">${scoreEl(l,true)}<div><b>${esc(a.verdict)}</b><span>Тип сигнала: ${esc(a.signal)}</span></div></div><div class="body">
        ${list("","Почему",a.reasons)}${list("ev","Подтверждено публикацией",a.evidence)}${list("as","Предположения, не подтверждены",a.assumptions)}${list("","Проверить вручную",a.risks)}</div></div>`
      :`<div class="row"><button class="btn pri" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample||!canWrite?"disabled":""}>${busy[l.id]?"Оцениваю…":"Оценить AI"}</button>${l.err?`<span class="err">${esc(l.err)}</span>`:""}</div>`}</div>`}
+    ${aiSection(l,dis)}
     ${msgSection(l,dis)}
     <div class="sec"><h4>Следующий шаг ${l.autoStep?'<span class="chip" style="text-transform:none;letter-spacing:0">поставлен автоматически</span>':""}</h4><div class="grid2"><div class="fld" style="grid-column:span 2"><label for="d_ns">Что сделать</label><input id="d_ns" data-f="nextStep" value="${esc(l.nextStep)}" placeholder="Например: позвонить, уточнить дату корпоратива" ${dis}></div><div class="fld"><label for="d_nd">Когда</label><input id="d_nd" type="date" data-f="nextDate" value="${esc(l.nextDate)}" ${dis}></div></div></div>
     <div class="sec"><h4>Контактное лицо</h4><div class="grid2">
@@ -879,6 +882,106 @@ async function runBatch(){
   batch=null;softRender();toast("Оценка завершена");
 }
 
+/* ---------- AI-помощник (Claude API через функцию supabase/functions/ai) ---------- */
+let aiState=null,aiBusy={};
+async function aiCall(type,extra){const {data,error}=await sb.functions.invoke("ai",{body:{type,...(extra||{})}});
+  if(error){let m=error.message,code="";try{const j=await error.context?.json?.();if(j?.error){m=j.error;code=j.code||""}}catch(_){}const e=new Error(m);e.code=code;throw e}
+  if(data?.error){const e=new Error(data.error);e.code=data.code||"";throw e}return data}
+async function aiLoad(){try{aiState=await aiCall("status")}catch(e){aiState={connected:false,msg:"Не удалось проверить: "+e.message,err:1}}
+  sample=aiState?.connected?{json:async(p,o)=>(await aiCall("json",{prompt:p,tier:o?.modelTier==="quick"?"quick":"smart",web:!!o?.web,maxSearch:o?.maxSearch})).result}:null;render()}
+const PL_DESC=`Project LAN (corp.projectlan.ru) — корпоративные киберспортивные турниры для сотрудников компаний.
+Своя платформа: турниры в любой игре, чаще всего CS2 и Dota 2; свои игровые серверы; страница турнира в брендинге компании-клиента; режим тренировок; миссии для сотрудников с наградами на выбор компании. Для внутренних турниров компании платформа бесплатная.
+Форматы: от пары команд в офисе до финала со сценой и трансляцией; онлайн и офлайн.
+Уже проводили турниры для: ФК «Спартак», сеть «Лента», ЭвоКарго (Evocargo), ПроТехИнжиниринг.
+Для ивент- и MICE-агентств: партнёрство, агентское вознаграждение 15%, новый формат для их клиентов.`;
+const PL_STYLE=`Правила текста:
+- Пиши как живой человек, коротко и по-деловому, на «вы». Никакого канцелярита и шаблонных оборотов («буду признателен», «позвольте представить», «уникальное предложение», «в рамках»), никаких маркетинговых приёмов, восклицаний и эмодзи.
+- В первом сообщении не продавай: цель — начать диалог. Коротко кто мы, один конкретный повод написать именно этой компании, мягкий вопрос в конце.
+- Не выдумывай факты о компании получателя, цены, сроки и кейсы. Чего не знаешь — пометь [уточнить].
+- Подпись: Евгений Денисов, Project LAN, corp.projectlan.ru`;
+const isAgency=l=>/агент|mice|ивент|event|организац\S* мероприят/i.test([l.segment,l.contact,l.company,l.source].join(" "));
+function leadCtx(l){const i=l.intel,m=(l.messages||[]).slice(-2);
+  return`Компания: ${l.company||"неизвестна"}
+Контакт: ${[l.name,l.contact].filter(Boolean).join(", ")||"неизвестен"}
+Тип: ${isAgency(l)?"ивент/MICE-агентство (предлагаем партнёрство)":"компания-заказчик (пишем HR или тому, кто отвечает за мероприятия)"}
+Сегмент: ${l.segment||"—"}; источник: ${l.source||"—"}; ссылка: ${l.url||"нет"}
+${l.text?`Публикация/описание:\n"""${String(l.text).slice(0,2500)}"""\n`:""}${i?`Что известно о компании: ${[i.summary,i.industry,i.size,i.city].filter(Boolean).join("; ")}${i.hooks?.length?"\nПоводы написать: "+i.hooks.join("; "):""}\n`:""}${l.replyNote?`Ответ клиента и заметки менеджера:\n"""${String(l.replyNote).slice(0,2000)}"""\n`:""}${l.resp==="refused"?`Клиент отказал. Причина: ${l.lossReason||"не указана"}\n`:""}${m.length?`Наши прошлые сообщения:\n${m.map(x=>`— ${new Date(x.t).toLocaleDateString("ru-RU")}: ${x.subject?x.subject+" / ":""}${String(x.text||"").slice(0,700)}`).join("\n")}\n`:""}`}
+const AI_TASK={
+  first:"Напиши первое письмо этому лиду.",
+  follow:"Клиент не ответил на наше прошлое сообщение. Напиши короткое второе касание (2–4 предложения): без упрёков, с новым коротким поводом или полезной мелочью, и простым вопросом. Тема — «Re: » + тема прошлого письма, если она есть.",
+  reply:"Клиент ответил (см. «Ответ клиента и заметки менеджера»). Напиши ответ: отреагируй на то, что он написал, ответь на его вопросы по существу (только по фактам о Project LAN), предложи один понятный следующий шаг — созвон 15 минут или короткое КП.",
+  refusal:"Клиент отказал. Не отпускай лид: напиши короткий ответ (3–5 предложений) — поблагодари без обиды, затем один дополнительный зацеп, подобранный именно под эту компанию и причину отказа (например, бесплатная платформа для внутреннего турнира, формат на 1–2 часа в офисе, тренировки, миссии, турнир между отделами), и лёгкий вопрос, который легко принять. Не дави."};
+function draftPrompt(l,kind){return`Ты — Евгений Денисов, менеджер Project LAN. Готовишь сообщение клиенту.
+О нас (только эти факты можно использовать):
+${(cfg.desc||"").trim()||PL_DESC}
+
+${PL_STYLE}
+
+О лиде:
+${leadCtx(l)}
+Задача: ${AI_TASK[kind]}${isAgency(l)&&kind==="first"?" Это агентство: предложи партнёрство — новый формат для их клиентов и 15% агентского вознаграждения; спроси, бывают ли у их клиентов такие запросы. Это должно звучать как предложение сотрудничать, а не продажа.":""}
+
+Верни ТОЛЬКО JSON: {"subject":"тема письма","text":"текст письма с подписью","note":"одной фразой: что менеджеру проверить или дописать перед отправкой, или пусто"}`}
+function intelPrompt(l){return`Найди в интернете сведения о российской компании для менеджера по продажам Project LAN (корпоративные киберспортивные турниры для сотрудников).
+Компания: ${l.company||"?"}${l.url?`; ссылка из карточки: ${l.url}`:""}${l.email?`; email контакта: ${l.email} (домен подскажет сайт)`:""}${l.name?`; контакт: ${l.name}${l.contact?", "+l.contact:""}`:""}
+Нужно: официальный сайт, отрасль, примерная численность сотрудников, город, кто отвечает за HR / внутренние мероприятия / HR-бренд (только если имя и должность есть в открытых источниках), свежие новости за последние 12 месяцев, и поводы написать именно сейчас (открыли офис, активно нанимают, юбилей, рейтинг работодателей, корпоративные события, спорт и киберспорт внутри компании).
+Не выдумывай: если чего-то не нашёл — оставь поле пустым. Никаких личных данных, кроме имени и должности из публичных источников.
+Верни ТОЛЬКО JSON: {"site":"","industry":"","size":"","city":"","summary":"2–3 предложения о компании","hr":[{"name":"","role":"","url":""}],"news":[{"date":"","title":"","url":""}],"hooks":["конкретный повод написать, со ссылкой на факт"],"fit":"одной фразой: почему турнир может подойти или нет","sources":["url"]}`}
+function briefPrompt(l){return`Подготовь справку к звонку для менеджера Project LAN. Он прочитает её за минуту перед звонком.
+О нас:
+${(cfg.desc||"").trim()||PL_DESC}
+
+О лиде:
+${leadCtx(l)}
+Если сведений о компании мало, можешь коротко поискать в интернете. Не выдумывай.
+Верни ТОЛЬКО JSON: {"about":"кто они, 1–2 предложения","person":"кто наш собеседник и что ему важно, если известно","hooks":["чем зацепить, 2–3 пункта"],"questions":["вопросы, которые стоит задать, 3–5"],"objections":[{"q":"вероятное возражение","a":"короткий ответ"}],"offer":"что предложить как следующий шаг"}`}
+async function aiDraft(id,kind){const l=L(id);if(!l||!sample||aiBusy[id])return;
+  aiBusy[id]=kind;renderDrawer();
+  try{const r=await sample.json(draftPrompt(l,kind));const subject=String(r.subject||l.subject||"").trim(),text=String(r.text||"").trim();
+    if(!text)throw new Error("пустой ответ");
+    await upd(id,{subject,draft:text,draftEdited:true,aiNote:r.note||""});toast("Черновик готов — проверьте и отправьте сами")}
+  catch(e){toast("AI: "+(e.message||e.code))}
+  delete aiBusy[id];renderDrawer()}
+async function aiIntel(id){const l=L(id);if(!l||!sample||aiBusy[id])return;
+  aiBusy[id]="intel";renderDrawer();
+  try{const r=await sample.json(intelPrompt(l),{web:true,maxSearch:5});await upd(id,{intel:{...r,at:Date.now()}});toast("Сведения о компании добавлены")}
+  catch(e){toast("AI: "+(e.message||e.code))}
+  delete aiBusy[id];renderDrawer()}
+async function aiBrief(id){const l=L(id);if(!l||!sample||aiBusy[id])return;
+  aiBusy[id]="brief";renderDrawer();
+  try{const r=await sample.json(briefPrompt(l),{web:!l.intel,maxSearch:3});await upd(id,{brief:{...r,at:Date.now()}});toast("Справка к звонку готова")}
+  catch(e){toast("AI: "+(e.message||e.code))}
+  delete aiBusy[id];renderDrawer()}
+function aiSection(l,dis){
+  if(!aiState)return"";
+  if(!sample)return`<div class="sec"><h4>AI-помощник</h4><div class="hint">Не подключён. Добавьте ключ Claude API в «Настройки → AI-помощник» — появятся черновики писем, ответы на отказы и справки о компании.</div></div>`;
+  const b=aiBusy[l.id],x=dis||(b?"disabled":"");
+  const btn=(act,k,t,on=true)=>`<button class="btn sm" data-act="${act}" ${k?`data-k="${k}"`:""} ${x||(on?"":"disabled")}>${b===(k||act)?"Думаю…":t}</button>`;
+  const hasMsg=(l.messages||[]).length||(l.touches||[]).length,i=l.intel,br=l.brief;
+  const lst=(t,a)=>a?.length?`<div><div class="k">${t}</div><ul>${a.map(v=>`<li>${v}</li>`).join("")}</ul></div>`:"";
+  const lnk=(t,u)=>u&&/^https?:\/\//.test(u)?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(t||u)}</a>`:esc(t||"");
+  return`<div class="sec"><h4>AI-помощник</h4>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${btn("aidraft","first",isAgency(l)?"Письмо агентству":"Первое письмо")}${btn("aidraft","follow","Напоминание",!!hasMsg)}${btn("aidraft","reply","Ответить клиенту",!!String(l.replyNote||"").trim())}${btn("aidraft","refusal","Ответ на отказ",l.resp==="refused")}${btn("aiintel","","Узнать о компании")}${btn("aibrief","","Справка к звонку")}</div>
+    <div class="hint" style="margin-top:6px">Черновик появится в блоке «Сообщение клиенту» ниже. Отправляете вы сами. Для «Ответить клиенту» вставьте его ответ в «Заметки».</div>
+    ${l.aiNote?`<div class="hint" style="margin-top:6px;color:var(--mid)">Перед отправкой: ${esc(l.aiNote)}</div>`:""}
+    ${i?`<details class="ai" style="margin-top:10px" open><summary class="head" style="cursor:pointer"><div><b>О компании</b><span>${[i.industry,i.size,i.city].filter(Boolean).map(esc).join(" · ")||"обновлено "+ftime(i.at)}</span></div></summary><div class="body">
+      ${i.summary?`<div>${esc(i.summary)}</div>`:""}${i.site?`<div>Сайт: ${lnk(i.site,/^https?:/.test(i.site)?i.site:"https://"+i.site)}</div>`:""}${i.fit?`<div class="k" style="font-weight:400">${esc(i.fit)}</div>`:""}
+      ${lst("Поводы написать",(i.hooks||[]).map(esc))}${lst("Кто отвечает за HR / мероприятия",(i.hr||[]).filter(p=>p&&(p.name||p.role)).map(p=>lnk([p.name,p.role].filter(Boolean).join(" — "),p.url)))}
+      ${lst("Новости",(i.news||[]).filter(n=>n&&n.title).map(n=>(n.date?esc(n.date)+" — ":"")+lnk(n.title,n.url)))}
+      ${i.sources?.length?`<div class="hint">Источники: ${i.sources.slice(0,5).map(u=>lnk(u.replace(/^https?:\/\/(www\.)?/,"").split("/")[0],u)).join(", ")} · ${ftime(i.at)}</div>`:""}</div></details>`:""}
+    ${br?`<details class="ai" style="margin-top:10px"><summary class="head" style="cursor:pointer"><div><b>Справка к звонку</b><span>${ftime(br.at)}</span></div></summary><div class="body">
+      ${br.about?`<div>${esc(br.about)}</div>`:""}${br.person?`<div><div class="k">Собеседник</div>${esc(br.person)}</div>`:""}${lst("Чем зацепить",(br.hooks||[]).map(esc))}${lst("Что спросить",(br.questions||[]).map(esc))}
+      ${lst("Возражения",(br.objections||[]).filter(o=>o&&o.q).map(o=>`<b>${esc(o.q)}</b> — ${esc(o.a||"")}`))}${br.offer?`<div><div class="k">Следующий шаг</div>${esc(br.offer)}</div>`:""}</div></details>`:""}
+  </div>`}
+function aiPanel(){const st=aiState;
+  if(!st)return`<div class="panel"><h3>AI-помощник</h3><p class="hint">Проверяю…</p></div>`;
+  const body=st.connected
+    ?`<p style="margin:0 0 10px">Подключён (ключ …${esc(st.tail)}${st.by?", добавил(а) "+esc(who(st.by)):""}). В карточке лида есть блок «AI-помощник», в «Проверке» работает AI-оценка.</p><div class="row"><button class="btn ghost" data-act="aioff" ${canWrite?"":"disabled"}>Отключить</button></div>`
+    :`<p class="hint" style="margin:-6px 0 10px">Пишет черновики писем, ответы на отказы и напоминания, находит сведения о компании в интернете, готовит справку к звонку и оценивает новых лидов. Письма всё равно отправляете вы.</p>
+     <ol class="hint" style="margin:0 0 10px;padding-left:18px"><li>Зайдите на <b>console.anthropic.com</b>, пополните баланс (от $5).</li><li>Откройте <b>API Keys → Create Key</b> и скопируйте ключ (начинается с <span class="num">sk-ant-</span>).</li><li>Вставьте его ниже. Ключ хранится на сервере, в браузере его не видно.</li></ol>
+     <div class="row"><div class="fld" style="flex:1;min-width:220px"><input id="ai_key" placeholder="sk-ant-…" autocomplete="off"></div><button class="btn pri" data-act="aisetup" ${canWrite?"":"disabled"}>Подключить</button></div>`;
+  return`<div class="panel"><h3>AI-помощник</h3>${body}${st.msg?`<p class="${st.err?"err":"hint"}" style="margin:8px 0 0">${esc(st.msg)}</p>`:""}</div>`}
+
 /* new lead modal */
 function openNew(){
   $("#modal").hidden=false;
@@ -1017,6 +1120,11 @@ document.addEventListener("click",async e=>{
       else if(act==="tpldel"){const arr=tpls().filter((_,i)=>i!==+b.dataset.i);await cfgSet({...cfg,templates:arr});renderMain();toast("Шаблон удалён")}
       else if(act==="tgsetup"){b.disabled=true;b.textContent="Подключаю…";try{const r=await tgCall("setup",{token:$("#tg_tok").value.trim()});if(r.ok){tgState={connected:true,chat:r.chat,bot:r.bot};toast("Telegram подключён — проверьте чат")}else if(r.needChat){tgState={connected:false,hasToken:true,bot:r.bot,msg:`Токен принят. Теперь добавьте @${r.bot} в чат команды, напишите там любое сообщение и снова нажмите «Подключить».`}}}catch(e){tgState={...(tgState||{}),connected:false,msg:e.message,err:1}}renderMain()}
       else if(act==="tgtest"){b.disabled=true;try{const r=await tgCall("digest_now");toast(r.skipped?"Дел на сегодня и просроченных нет — сводка пустая":r.ok?"Сводка отправлена в чат":"Не отправилось: "+(r.description||r.error||""))}catch(e){toast(e.message)}b.disabled=false}
+      else if(act==="aidraft")aiDraft(id,b.dataset.k);
+      else if(act==="aiintel")aiIntel(id);
+      else if(act==="aibrief")aiBrief(id);
+      else if(act==="aisetup"){b.disabled=true;b.textContent="Проверяю ключ…";try{const r=await aiCall("setup",{key:$("#ai_key").value.trim()});toast("AI-помощник подключён");await aiLoad()}catch(e){aiState={...aiState,msg:e.message,err:1};renderMain()}}
+      else if(act==="aioff"){await aiCall("disconnect");await aiLoad();toast("AI-помощник отключён")}
       else if(act==="tgoff"){await tgCall("disconnect");tgState={connected:false};renderMain();toast("Telegram отключён")}
       else if(act==="takeme"){await upd(id,{owner:myId});render();toast("Лид закреплён за вами")}
       else if(act==="saveforce"){dupForce=true;await saveNew(false)}
