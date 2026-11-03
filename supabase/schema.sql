@@ -101,3 +101,10 @@ grant execute on function public.tg_response(bigint) to service_role;
 --     public.tg_request дублирует им каждое сообщение, отправленное в основной чат (миграция telegram_extra_recipients).
 --     Добавить человека: он пишет боту /start, затем
 --     update public.app_secrets set value = value || ',<chat_id>' where key = 'tg_chat_extra';
+
+-- 11. Задания для Claude из Telegram (миграции telegram_bot_tasks, telegram_bot_reply_ack).
+--     Таблица public.bot_tasks; функции bot_fetch_start / bot_fetch_finish(id) забирают сообщения боту
+--     от людей из tg_chat + tg_chat_extra, bot_reply(id, текст[, 'ack'|'done'|'failed'|'new']) отвечает в их чат.
+--     Выполняет scheduled task Claude «Задания из Telegram-бота» — каждый час, 8:07–23:07 МСК.
+--     Смещение getUpdates хранится в app_secrets.tg_update_offset: прочитанные сообщения Telegram больше не отдаёт,
+--     поэтому при повторном «Подключить» в CRM сначала напишите боту новое сообщение.
