@@ -11,7 +11,8 @@
         python3 tg_sync.py --login  — первый вход в Telegram (код из SMS/приложения)
         python3 tg_sync.py --dry    — показать, что изменилось бы, ничего не записывая
 """
-import asyncio, datetime as dt, json, os, re, sys, time
+import asyncio, datetime as dt, json, os, re, sys, time, warnings
+warnings.filterwarnings("ignore")
 
 import requests
 from telethon import TelegramClient
@@ -24,6 +25,14 @@ SB = CFG["supabase_url"].rstrip("/")
 KEY = CFG["anon_key"]
 NOANSWER_DAYS = int(CFG.get("noanswer_days", 3))
 DRY = "--dry" in sys.argv
+
+# Частая ошибка при настройке: api_id и api_hash вставлены в одно поле — разделяем и сохраняем исправленное
+_parts = str(CFG.get("api_id", "")).replace(",", " ").split()
+if len(_parts) == 2 and _parts[0].isdigit():
+    CFG["api_id"], CFG["api_hash"] = _parts[0], _parts[1]
+    json.dump(CFG, open(os.path.join(DIR, "config.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+if not str(CFG.get("api_id", "")).strip().isdigit():
+    raise SystemExit("В config.json неверный api_id (должны быть только цифры). Удалите ~/ProjectLAN-TG/config.json и запустите установку заново.")
 
 RANK = ["new", "scored", "approved", "sent", "replied", "qualified", "deal", "won"]
 STAMP = {"approved": "approvedAt", "sent": "sentAt", "replied": "repliedAt",

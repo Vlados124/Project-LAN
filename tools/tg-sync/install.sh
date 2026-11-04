@@ -26,14 +26,14 @@ curl -fsSL "$BASE/tg_sync.py?$(date +%s)" -o tg_sync.py
 echo "2/5  Устанавливаю библиотеку Telegram (1–2 минуты)…"
 [ -d venv ] || python3 -m venv venv
 ./venv/bin/pip install -q --upgrade pip >/dev/null 2>&1 || true
-./venv/bin/pip install -q "telethon>=1.34,<2" "requests>=2.28"
+./venv/bin/pip install -q "telethon>=1.34,<2" "requests>=2.28" "urllib3<2"
 
 if [ ! -f config.json ]; then
   echo ""
   echo "3/5  Настройка. Данные сохраняются только на этом Mac (файл $DIR/config.json)."
   echo "     api_id и api_hash — со страницы my.telegram.org → API development tools."
-  read -r -p "     api_id: " API_ID < $TTY
-  read -r -p "     api_hash: " API_HASH < $TTY
+  read -r -p "     api_id (только цифры): " API_ID < $TTY
+  read -r -p "     api_hash (длинная строка из букв и цифр): " API_HASH < $TTY
   read -r -p "     Email для входа в CRM: " CRM_EMAIL < $TTY
   read -r -s -p "     Пароль от CRM (не отображается): " CRM_PASS < $TTY; echo ""
   API_ID="$API_ID" API_HASH="$API_HASH" CRM_EMAIL="$CRM_EMAIL" CRM_PASS="$CRM_PASS" ./venv/bin/python - <<'PY'
