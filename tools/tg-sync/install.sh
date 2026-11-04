@@ -1,14 +1,17 @@
 #!/bin/bash
 # Установка синхронизации Telegram → CRM Project LAN на macOS.
 # Запуск: curl -fsSL https://vlados124.github.io/Project-LAN/tools/tg-sync/install.sh | bash
+# Второй/третий аккаунт Telegram: ... | bash -s 2   (или 3 и т.д.) — отдельная папка и свой вход
 set -e
 BASE="https://vlados124.github.io/Project-LAN/tools/tg-sync"
-DIR="$HOME/ProjectLAN-TG"
-PLIST="$HOME/Library/LaunchAgents/ru.projectlan.tgsync.plist"
+N="${1:-}"
+DIR="$HOME/ProjectLAN-TG${N:+-$N}"
+LABEL="ru.projectlan.tgsync${N}"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 TTY=/dev/tty
 
 echo ""
-echo "=== Project LAN: Telegram → CRM ==="
+echo "=== Project LAN: Telegram → CRM ${N:+(аккаунт $N)} ==="
 echo ""
 
 if ! command -v python3 >/dev/null 2>&1 || ! python3 -c "import venv" 2>/dev/null; then
@@ -28,6 +31,11 @@ echo "2/5  Устанавливаю библиотеку Telegram (1–2 мин�
 ./venv/bin/pip install -q --upgrade pip >/dev/null 2>&1 || true
 ./venv/bin/pip install -q "telethon>=1.34,<2" "requests>=2.28" "urllib3<2"
 
+if [ ! -f config.json ] && [ -n "$N" ] && [ -f "$HOME/ProjectLAN-TG/config.json" ]; then
+  echo ""
+  read -r -p "3/5  Взять api_id, api_hash и вход в CRM из первой установки? [Y/n]: " SAME < $TTY
+  if [ "$SAME" != "n" ] && [ "$SAME" != "N" ]; then cp "$HOME/ProjectLAN-TG/config.json" config.json; chmod 600 config.json; echo "     Взял. Аккаунт Telegram при этом будет другой — войдёте на шаге 4."; fi
+fi
 if [ ! -f config.json ]; then
   echo ""
   echo "3/5  Настройка. Данные сохраняются только на этом Mac (файл $DIR/config.json)."
@@ -67,7 +75,7 @@ cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>ru.projectlan.tgsync</string>
+  <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key><array><string>$DIR/venv/bin/python</string><string>$DIR/tg_sync.py</string></array>
   <key>WorkingDirectory</key><string>$DIR</string>
   <key>StartInterval</key><integer>3600</integer>
