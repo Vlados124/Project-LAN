@@ -59,6 +59,13 @@ else
   echo "3/5  Настройки уже есть (config.json) — оставляю."
 fi
 
+if [ -n "$N" ] && ! grep -q '"by"' config.json; then
+  read -r -p "     Это общий аккаунт команды? Тогда отметки в CRM будут подписаны «Общий Telegram» [Y/n]: " SHARED < $TTY
+  if [ "$SHARED" != "n" ] && [ "$SHARED" != "N" ]; then
+    ./venv/bin/python -c "import json;c=json.load(open('config.json'));c['by']='Общий Telegram';json.dump(c,open('config.json','w'),ensure_ascii=False,indent=1)"
+  fi
+fi
+
 if [ ! -f tg.session ]; then
   echo ""
   echo "4/5  Вход в Telegram. Введите номер телефона в формате +79991234567,"

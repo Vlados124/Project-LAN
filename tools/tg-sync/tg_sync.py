@@ -72,7 +72,8 @@ class CRM:
                           json={"email": CFG["crm_email"], "password": CFG["crm_password"]}, timeout=30)
         if r.status_code != 200:
             raise SystemExit("Не удалось войти в CRM: проверьте email и пароль в config.json (" + r.text[:200] + ")")
-        self.me = CFG["crm_email"]
+        # Для общего аккаунта Telegram отметки подписываются не конкретным человеком, а этим ярлыком
+        self.me = (CFG.get("by") or "").strip() or CFG["crm_email"]
         self.h = {"apikey": KEY, "Authorization": "Bearer " + r.json()["access_token"],
                   "Content-Type": "application/json"}
 
