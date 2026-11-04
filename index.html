@@ -702,6 +702,7 @@ function renderDrawer(){
     <div class="nav">${(()=>{const i=navList.indexOf(l.id);return i>=0&&navList.length>1?`<button class="btn sm ghost" data-act="nav" data-v="-1" title="Предыдущий лид (↑ или K)" ${i>0?"":"disabled"}>${ico("up",16)}</button><span class="num">${i+1} / ${navList.length}</span><button class="btn sm ghost" data-act="nav" data-v="1" title="Следующий лид (↓ или J)" ${i<navList.length-1?"":"disabled"}>${ico("down",16)}</button>`:""})()}<button class="btn sm ghost" data-act="close" aria-label="Закрыть" title="Закрыть (Esc)">✕</button></div></div>
   <div class="db">
     ${quickBar(l)}
+    ${followBox(l)}
     ${(()=>{const dd=dupsOf(l,l.id),hard=dd.filter(d=>/телефон|email/.test(d.why)),peers=dd.filter(d=>!/телефон|email/.test(d.why));
       return(hard.length?`<div class="warnbox"><b>Возможный дубль</b>${hard.slice(0,3).map(d=>`<span>• <a data-open="${d.l.id}">${esc(d.l.company||d.l.name||"Без названия")}${d.l.name?" — "+esc(d.l.name):""}</a> — совпадает ${d.why} · ${esc(ST[d.l.status]||"")}</span>`).join("")}</div>`:"")
       +(peers.length?`<div class="sec"><h4>Ещё в этой компании <span class="num" style="color:var(--ink2)">${peers.length}</span></h4><div class="peers">${peers.slice(0,6).map(d=>`<a data-open="${d.l.id}"><b>${esc(d.l.name||"Без имени")}</b><span>${esc((d.l.contact||"").split(" · ")[0])}</span>${stChip(d.l.status)}</a>`).join("")}</div></div>`:"")})()}
@@ -736,6 +737,9 @@ function renderDrawer(){
     ${canWrite?`<div class="sec"><h4>Опасная зона</h4><div class="row">${l._confirmDel?`<span class="err">Удалить лида навсегда?</span><button class="btn sm no" data-act="delyes" data-id="${l.id}">Да, удалить</button><button class="btn sm" data-act="delno">Отмена</button>`:`<button class="btn sm ghost" style="color:var(--lo)" data-act="del">Удалить лида</button>`}</div></div>`:""}
   </div>`});
 }
+function followPending(l){const pr=l.promise&&!l.promise.done&&!touchesOf(l).some(t=>t.ch==="email"&&t.t>l.promise.t);return{pr:!!pr,aw:(l.tgAwait||0)>0}}
+function followBox(l){const f=followPending(l);if(!f.pr&&!f.aw)return"";
+  return`<div class="warnbox" style="background:var(--lo-soft,#fde8e8)"><b>${f.pr?"Обещали отправить "+esc(l.promise.what||"письмо"):"Лид ждёт ответа в Telegram"}</b>${f.pr&&l.promise.text?`<span>«${esc(l.promise.text)}» · ${ftime(l.promise.t)}</span>`:""}${f.aw?`<span>${f.pr?"Также не ответили в Telegram: ":""}лид написал(а) ${ftime(l.tgAwait)}, ответа от нас нет</span>`:""}<span class="hint">Бот напоминает в Telegram в будни в 10:00 и 15:00, пока не нажмёте «Сделано» (письмо, отправленное из CRM, закрывает напоминание само).</span><div class="row"><button class="btn sm ok" data-act="fudone" ${canWrite?"":"disabled"}>Сделано</button></div></div>`}
 function quickBar(l){
   const ph=tgNum(l.phone),u=tgUser(l),em=String(l.email||"").trim();
   const who_=[l.name,(l.contact||"").split(" · ")[0]].filter(Boolean).join(" — ");
@@ -1223,6 +1227,7 @@ document.addEventListener("click",async e=>{
       else if(act==="aisetup"){b.disabled=true;b.textContent="Проверяю ключ…";try{const r=await aiCall("setup",{key:$("#ai_key").value.trim()});toast("AI-помощник подключён");await aiLoad()}catch(e){aiState={...aiState,msg:e.message,err:1};renderMain()}}
       else if(act==="aioff"){await aiCall("disconnect");await aiLoad();toast("AI-помощник отключён")}
       else if(act==="tgoff"){await tgCall("disconnect");tgState={connected:false};renderMain();toast("Telegram отключён")}
+      else if(act==="fudone"){const l=L(id),f=followPending(l),o={};if(f.pr)o.promise={...l.promise,done:true,doneAt:Date.now(),doneBy:myId};if(f.aw)o.tgAwait=0;if(l.autoStep&&/^(Ответить в Telegram|Отправить письмо)/.test(l.nextStep||"")){o.nextStep="";o.nextDate="";o.autoStep=false}await upd(id,o);render();toast("Напоминание снято")}
       else if(act==="takeme"){await upd(id,{owner:myId});render();toast("Лид закреплён за вами")}
       else if(act==="saveforce"){dupForce=true;await saveNew(false)}
       else if(act==="opendup"){closeModal();openLead(b.dataset.id)}

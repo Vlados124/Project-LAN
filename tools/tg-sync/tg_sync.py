@@ -5,7 +5,9 @@
 находит в них лидов из CRM по @нику или телефону и отмечает в карточке:
   • вы написали лиду          → контакт «Мессенджер», этап «Связались»;
   • лид ответил               → этап «Есть ответ», текст ответа в заметках;
-  • написали, а ответа нет 3+ дня → ответ «Нет ответа» и напоминание.
+  • написали, а ответа нет 3+ дня → ответ «Нет ответа» и напоминание;
+  • лид написал, а мы не ответили  → «ждёт ответа», напоминание в боте;
+  • лид попросил написать на почту → обещание, напоминание пока письмо не отправлено.
 
 Запуск: python3 tg_sync.py          — одна проверка
         python3 tg_sync.py --login  — первый вход в Telegram (код из SMS/приложения)
@@ -38,6 +40,9 @@ RANK = ["new", "scored", "approved", "sent", "replied", "qualified", "deal", "wo
 STAMP = {"approved": "approvedAt", "sent": "sentAt", "replied": "repliedAt",
          "qualified": "qualifiedAt", "deal": "dealAt", "won": "wonAt"}
 SKIP_TG = {"joinchat", "share", "s", "c", "addstickers", "proxy"}
+# лид просит написать на почту — запоминаем как обещание и напоминаем, пока не отправили
+PROMISE_RE = re.compile(r"почт|e-?mail|имейл|мейл|майл|[\w.+-]+@[\w-]+\.[\w.-]+", re.I)
+EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 
 def log(*a):
@@ -155,6 +160,8 @@ async def run():
         state = json.load(open(STATE_F))
     except Exception:
         state = {}
+    if state.get("_v") != 2:  # новая версия: один раз перечитываем все чаты
+        state = {"_v": 2}
 
     now = int(time.time() * 1000)
     stats = {"matched": 0, "wrote": 0, "replied": 0, "noanswer": 0}
@@ -225,12 +232,37 @@ async def run():
                     stats["noanswer"] += 1
                 else:
                     done = False  # ещё рано — проверим в следующий раз
+            # 4) лид написал последним — ждёт нашего ответа
+            aw = ms(last_in.date) if last_in and (not last_out or last_in.date > last_out.date) else 0
+            if aw != (l.get("tgAwait") or 0):
+                p["tgAwait"] = aw
+                free = not l.get("nextDate") or l.get("autoStep")
+                if aw and free and "promise" not in p:
+                    p.update({"nextStep": "Ответить в Telegram — лид ждёт ответа", "nextDate": dt.date.today().isoformat(), "autoStep": True})
+                elif not aw and l.get("autoStep") and str(l.get("nextStep") or "").startswith("Ответить"):
+                    p.update({"nextStep": "", "nextDate": "", "autoStep": False})
+            if last_out and ms(last_out.date) > (l.get("tgLastOut") or 0):
+                p["tgLastOut"] = ms(last_out.date)
+            # 5) лид попросил написать на почту — пока письмо не отправлено, висит напоминание
+            asks = [m for m in ins if m.message and PROMISE_RE.search(m.message)]
+            if asks:
+                pm = max(asks, key=lambda m: m.date)
+                pt = ms(pm.date)
+                sent = any(t.get("ch") == "email" and (t.get("t") or 0) > pt for t in (l.get("touches") or []) + (l.get("messages") or []))
+                if pt > ((l.get("promise") or {}).get("t") or 0) and not sent:
+                    em = EMAIL_RE.search(pm.message)
+                    what = "письмо на " + em.group(0) if em else "письмо на почту"
+                    p["promise"] = {"t": pt, "what": what, "src": "tg", "text": pm.message[:300]}
+                    if em and not l.get("email"):
+                        p["email"] = em.group(0)
+                    p.update({"nextStep": f"Отправить {what} (просили в Telegram {pm.date.astimezone().strftime('%d.%m')})",
+                              "nextDate": dt.date.today().isoformat(), "autoStep": True})
             if p:
                 p["updatedAt"] = now
                 p["updatedBy"] = crm.me
                 crm.patch(l["id"], p)
                 log(f"{'[проба] ' if DRY else ''}{l.get('company') or '—'} / {l.get('name') or e.first_name or ''}: "
-                    + ", ".join(k for k in ("touches", "status", "resp", "replyNote") if k in p))
+                    + ", ".join(k for k in ("touches", "status", "resp", "replyNote", "tgAwait", "promise") if k in p))
         state[key] = {"top": top, "done": done, "ids": ids}
         await asyncio.sleep(0.3)  # бережём лимиты Telegram
 
