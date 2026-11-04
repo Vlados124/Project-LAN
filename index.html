@@ -811,7 +811,9 @@ function msgSection(l,dis){
   if(st==="confirm")act=`<span>Отправить письмо на <b>${esc(l.email)}</b>?</span><button class="btn pri" data-act="emailyes">Да, отправить</button><button class="btn ghost" data-act="sndno">Отмена</button>`;
   else if(st==="sending")act=`<button class="btn pri" disabled>Отправляю…</button>`;
   else if(st==="tg")act=`<span class="hint" style="flex-basis:100%">Текст скопирован. Вставьте его в открывшийся чат (⌘V) и отправьте.</span><button class="btn ok" data-act="tgdone">Я отправил(а) в Telegram</button><button class="btn ghost" data-act="sndno">Не отправил</button>`;
-  else act=`<button class="btn pri" data-act="email" ${l.email&&canWrite?"":"disabled"}>Отправить на почту</button>`
+  else if(st==="mail")act=`<span class="hint" style="flex-basis:100%">Письмо открыто в почте. Отправили?</span><button class="btn ok" data-act="maildone">Да, отправил(а)</button><button class="btn ghost" data-act="sndno">Не отправил</button>`;
+  else act=(l.email?`<a class="btn pri" href="#" data-act="vkmail">${ico("email")} Открыть в почте VK</a><a class="btn" href="#" data-act="mailto" title="Apple Mail / Outlook и т.п.">Почтовая программа</a>`:`<button class="btn pri" disabled>Открыть в почте</button>`)
+    +`<button class="btn ghost" data-act="email" ${l.email&&canWrite?"":"disabled"} title="Отправка через сервер — заработает, когда будет пароль для внешнего приложения">Отправить из CRM</button>`
     +(tgU||tg?`<a class="btn" href="${tgU?"https://t.me/"+esc(tgU):"https://t.me/+"+tg}" target="_blank" rel="noopener noreferrer" data-act="tg">Открыть в Telegram</a>`:`<button class="btn" disabled>Открыть в Telegram</button>`)
     +`<button class="btn ghost" data-act="copy">Копировать</button>`
     +(!l.email||!(tg||tgU)?`<span class="hint" style="flex-basis:100%">${!l.email?"Нет email в карточке — почта недоступна. ":""}${!(tg||tgU)?"Нет телефона и Telegram — мессенджер недоступен.":""}</span>`:"");
@@ -1192,6 +1194,12 @@ document.addEventListener("click",async e=>{
       else if(act==="emailyes")await sendEmail(id);
       else if(act==="sndno"){snd=null;renderDrawer()}
       else if(act==="tg"){const t=$("#d_draft").value;try{await navigator.clipboard.writeText(t)}catch(_){}snd={id,mode:"tg"};setTimeout(renderDrawer,50)}
+      else if(act==="vkmail"||act==="mailto"){e.preventDefault();const l=L(id),subj=$("#d_subj")?.value||"",txt=$("#d_draft")?.value||"";
+        if(txt!==(l.draft||"")||subj!==(l.subject||""))upd(id,{draft:txt,subject:subj,draftEdited:true}).catch(()=>{});
+        const mt="mailto:"+encodeURIComponent(l.email)+"?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(txt);
+        if(act==="vkmail")window.open("https://e.mail.ru/compose/?mailto="+encodeURIComponent(mt),"_blank","noopener");else location.href=mt;
+        snd={id,mode:"mail"};setTimeout(renderDrawer,50)}
+      else if(act==="maildone"){const l=L(id);await logMsg(id,{ch:"email",to:l.email,subject:$("#d_subj")?.value||l.subject||"",text:$("#d_draft")?.value||l.draft||"",via:"manual"});snd=null;renderDrawer();renderMain();toast("Отмечено: письмо отправлено")}
       else if(act==="tgdone"){const l=L(id);await logMsg(id,{ch:"telegram",to:l.phone||(tgUser(l)?"@"+tgUser(l):""),text:$("#d_draft")?.value||l.draft||""});snd=null;renderDrawer();toast("Отмечено: отправлено в Telegram")}
       else if(act==="copy"){const t=$("#d_draft");try{await navigator.clipboard.writeText(t.value);toast("Черновик скопирован")}catch(_){t.focus();t.select();toast("Выделено — нажмите Ctrl+C")}}
       else if(act==="copyf"){const t=document.getElementById(b.dataset.for);if(t?.value){try{await navigator.clipboard.writeText(t.value);toast("Скопировано: "+t.value)}catch(_){t.focus();t.select();toast("Выделено — нажмите ⌘C")}}}
