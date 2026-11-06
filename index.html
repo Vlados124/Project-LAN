@@ -765,7 +765,7 @@ function contactSection(l,dis){
   return`<div class="sec"><h4>Связь с лидом ${ts.length?`<span class="num" style="color:var(--ink2)">${ts.length}</span>`:""}</h4>
     <div class="fld"><input id="d_tn" placeholder="Комментарий к контакту (необязательно): «не взял трубку», «просили КП»…" ${dis}></div>
     <div class="tbtns" style="margin-top:8px"><span class="hint" style="align-self:center">Отметить, что связались:</span>${["email","messenger","call"].map(k=>`<button class="btn sm" data-act="touch" data-v="${k}" ${dis}>${ico(k)} ${CH[k]}</button>`).join("")}</div>
-    ${ts.length?`<div class="tlist" style="margin-top:10px">${ts.slice(-5).reverse().map(x=>`<div><span class="num">${ftime(x.t)}</span>${ico(x.ch)}<span>${CH[x.ch]}</span><span class="nt">${esc(x.note||"")}</span><span style="color:var(--ink3);margin-left:auto;flex:none">${esc(who(x.by))}</span></div>`).join("")}${ts.length>5?`<div class="hint">…и ещё ${ts.length-5} раньше</div>`:""}</div>`:'<div class="hint" style="margin-top:8px">Ещё не связывались.</div>'}
+    ${ts.length?`<div class="tlist" style="margin-top:10px">${ts.slice(-5).reverse().map(x=>`<div><span class="num">${ftime(x.t)}</span>${ico(x.ch)}<span>${CH[x.ch]}</span><span class="nt">${esc(x.note||"")}</span><span style="color:var(--ink3);margin-left:auto;flex:none">${esc(who(x.by))}</span>${!x.auto&&!dis?`<button class="btn sm ghost" data-act="deltouch" data-t="${x.t}" data-v="${x.ch}" title="Удалить отметку (если ошибочно)" aria-label="Удалить отметку" style="flex:none;padding:0 6px;min-height:0;line-height:1.4">×</button>`:""}</div>`).join("")}${ts.length>5?`<div class="hint">…и ещё ${ts.length-5} раньше</div>`:""}</div>`:'<div class="hint" style="margin-top:8px">Ещё не связывались.</div>'}
   </div>
   <div class="sec"><h4>Ответ лида ${l.respAt?`<span class="num" style="color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">${ftime(l.respAt)}</span>`:""}</h4>
     <div class="rseg">${Object.entries(RESP).map(([k,t])=>`<button data-act="resp" data-v="${k}" class="${l.resp===k?"on":""}" ${dis} aria-pressed="${l.resp===k}">${t}</button>`).join("")}</div>
@@ -788,6 +788,12 @@ async function addTouch(id,ch){
   const o={touches:[...(l.touches||[]),{t:now,by:myId,ch,...(note?{note}:{})}],lastTouchAt:now};
   stagePatch(l,"sent",o,now);
   await upd(id,o);render();toast(`Отмечено: ${CH[ch].toLowerCase()}${note?" — "+note:""}`);
+}
+async function delTouch(id,t,ch){
+  const l=L(id);if(!l)return;const arr=[...(l.touches||[])];const i=arr.findIndex(x=>String(x.t)===String(t)&&x.ch===ch);if(i<0)return;
+  const [gone]=arr.splice(i,1);const rest=touchesOf({...l,touches:arr});const lt=rest.length?rest[rest.length-1].t:null;
+  await upd(id,{touches:arr,lastTouchAt:lt});render();
+  toast(`Удалено: ${CH[ch].toLowerCase()} ${ftime(gone.t)}`,{label:"Вернуть",fn:async()=>{const cur=L(id);const back=[...(cur.touches||[]),gone].sort((a,b)=>a.t-b.t);await upd(id,{touches:back,lastTouchAt:Math.max(cur.lastTouchAt||0,gone.t)});render()}});
 }
 async function setResp(id,v){
   const l=L(id),now=Date.now();
@@ -1202,6 +1208,7 @@ document.addEventListener("click",async e=>{
       else if(act==="batch")runBatch();
       else if(act==="toastact"){const a=toastAct;$("#toast").hidden=true;toastAct=null;if(a)await a.fn()}
       else if(act==="touch")await addTouch(id,b.dataset.v);
+      else if(act==="deltouch")await delTouch(id,b.dataset.t,b.dataset.v);
       else if(act==="resp")await setResp(id,b.dataset.v);
       else if(act==="email"){snd={id,mode:"confirm"};renderDrawer()}
       else if(act==="emailyes")await sendEmail(id);
