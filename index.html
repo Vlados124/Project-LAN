@@ -326,12 +326,12 @@ body.auth .shell,body.auth .top .btn{display:none}
 <script>
 const SRC=["БД Колизеум","Заявка с сайта","Telegram","Сайт/новости","RSS/поиск","ВКонтакте","Google Таблица","Вручную"];
 const SEG=["HR","Руководитель","Event-менеджер","Не определён"];
-const ST={new:"Новая",scored:"На проверке",approved:"Одобрена",sent:"Связались",replied:"Есть ответ",qualified:"Квалифицирован",deal:"Сделка в работе",won:"Сделка закрыта",lost:"Отказ/потеряно",rejected:"Отклонена"};
-const FLOW=["new","scored","approved","sent","replied","qualified","deal","won"];
-const BOARD=["approved","sent","replied","qualified","deal","won","lost"];
-const ACTIVE=["approved","sent","replied","qualified","deal"];
-const STAMP={approved:"approvedAt",sent:"sentAt",replied:"repliedAt",qualified:"qualifiedAt",deal:"dealAt",won:"wonAt"};
-const SCOL={new:"var(--ink3)",scored:"var(--mid)",approved:"var(--accent)",sent:"var(--accent)",replied:"var(--hi)",qualified:"var(--hi)",deal:"var(--hi)",won:"var(--hi)",lost:"var(--lo)",rejected:"var(--lo)"};
+const ST={new:"Новый",scored:"На проверке",sent:"Написали",replied:"Ответили",called:"Прозвонили",won:"Выиграно",lost:"Отказ",rejected:"Отклонён"};
+const FLOW=["new","sent","replied","called","won"];
+const BOARD=["sent","replied","called","won","lost"];
+const ACTIVE=["sent","replied","called"];
+const STAMP={sent:"sentAt",replied:"repliedAt",called:"calledAt",won:"wonAt"};
+const SCOL={new:"var(--ink3)",scored:"var(--mid)",sent:"var(--accent)",replied:"var(--hi)",called:"var(--hi)",won:"var(--hi)",lost:"var(--lo)",rejected:"var(--lo)"};
 const ICON={
  queue:'<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>',
  board:'<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/>',
@@ -538,7 +538,7 @@ function vQueue(){
     <div style="min-width:0"><h3>${esc(l.company||"Компания не указана")}</h3><div class="hint sub2" style="margin-top:2px">${reachEl(l)}<span>${esc([l.name,(l.contact||"").split(" · ")[0]].filter(Boolean).join(" · "))}</span></div>
       <div class="meta"><span class="chip">${esc(l.source||"—")}</span><span class="chip">${esc(l.segment||"—")}</span>${geoChip(l)}${l.ai?.signal?`<span class="chip">${esc(l.ai.signal)}</span>`:""}${respChip(l)}${chIcons(l)}${ownEl(l,true)}</div>
       <p class="why">${esc(l.ai?.verdict||(busy[l.id]?"AI оценивает…":l.err||(l.text||"").slice(0,200)))}</p></div>
-    <div class="side">${l.ai||!sample?`<button class="btn sm ok" data-act="st" data-id="${l.id}" data-v="approved">Одобрить</button><button class="btn sm no" data-act="st" data-id="${l.id}" data-v="rejected">Отклонить</button>`:`<button class="btn sm" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample?"disabled":""}>${busy[l.id]?"Оцениваю…":"Оценить AI"}</button>`}</div>
+    <div class="side">${l.ai||!sample?`<button class="btn sm ok" data-act="st" data-id="${l.id}" data-v="sent" title="Отметить, что написали">Написали</button><button class="btn sm no" data-act="st" data-id="${l.id}" data-v="rejected">Отклонить</button>`:`<button class="btn sm" data-act="score" data-id="${l.id}" ${busy[l.id]||!sample?"disabled":""}>${busy[l.id]?"Оцениваю…":"Оценить AI"}</button>`}</div>
   </div>`).join("")+"</div>";
 }
 
@@ -555,7 +555,7 @@ function vBoard(){
     <div class="colb">${items.length?items.map(l=>`<article class="kc" draggable="true" data-open="${l.id}" data-drag="${l.id}">
       <div class="t"><b>${esc(l.company||"Без названия")}</b>${scoreEl(l)}</div>
       ${l.nextStep||l.nextDate?`<div class="ns ${l.nextDate&&l.nextDate<t&&ACTIVE.includes(s)?"late":""}">${l.nextDate?`<span class="num">${fdate(l.nextDate)}</span>`:""}<span>${esc(l.nextStep||"")}</span></div>`:(ACTIVE.includes(s)?'<div class="ns" style="color:var(--ink3)">Нет следующего шага</div>':"")}
-      ${l.resp||touchesOf(l).length?`<div class="ft">${respChip(l)}${chIcons(l)}${lastTouch(l)?`<span class="num">${fdate(new Date(lastTouch(l).t).toISOString().slice(0,10))}</span>`:""}</div>`:""}
+      ${l.resp||l.callResult||touchesOf(l).length?`<div class="ft">${callChip(l)}${respChip(l)}${chIcons(l)}${lastTouch(l)?`<span class="num">${fdate(new Date(lastTouch(l).t).toISOString().slice(0,10))}</span>`:""}</div>`:""}
       <div class="ft">${bKind&&bKind!=="srm"?"":kindChip(l)}${ownEl(l)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name||"")}</span>${l.amount?`<span class="money">${rub(l.amount)}</span>`:""}</div>
     </article>`).join(""):'<div class="empty-col">Перетащите карточку сюда</div>'}</div></section>`}).join("");
   navList=nav;
@@ -598,13 +598,13 @@ function vTasks(){
 function vMetrics(){
   if(!leads.length)return'<div class="ph"><div><h1>Метрики</h1></div></div><div class="empty"><h3>Данных пока нет</h3><p>Метрики считаются только по реальным лидам. Тестовых цифр здесь нет.</p></div>';
   const has=k=>leads.filter(l=>l[k]).length;
-  const stages=[["Найдено",leads.length],["Релевантные ≥60",leads.filter(l=>l.ai?.score>=60).length],["Одобрено",has("approvedAt")],["Отправлено",has("sentAt")],["Ответили",has("repliedAt")],["Квалифицированы",has("qualifiedAt")],["Сделка",has("dealAt")],["Закрыто",leads.filter(l=>l.status==="won").length]];
+  const stages=[["Найдено",leads.length],["Релевантные ≥60",leads.filter(l=>l.ai?.score>=60).length],["Написали",has("sentAt")],["Ответили",has("repliedAt")],["Прозвонили",has("calledAt")],["Выиграно",leads.filter(l=>l.status==="won").length]];
   const max=stages[0][1]||1;
   const sum=k=>leads.reduce((s,l)=>s+(+l[k]||0),0);
   const sent=has("sentAt"),rep=has("repliedAt");
   const by=f=>{const o={};leads.forEach(l=>{const k=f(l)||"—";(o[k]=o[k]||[]).push(l)});return Object.entries(o).sort((a,b)=>b[1].length-a[1].length)};
   const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
-  const tbl=(t,f)=>`<div class="panel"><h3>${t}</h3><div class="tw" style="border:0"><table><thead><tr><th></th><th class="r">Найдено</th><th class="r">Ср. оценка</th><th class="r">Отпр.</th><th class="r">Ответы</th><th class="r">Сделки</th></tr></thead><tbody>${by(f).map(([k,a])=>{const sc=a.filter(l=>l.ai);return`<tr style="cursor:default"><td>${esc(k)}</td><td class="r num">${a.length}</td><td class="r num">${sc.length?Math.round(sc.reduce((s,l)=>s+l.ai.score,0)/sc.length):"—"}</td><td class="r num">${a.filter(l=>l.sentAt).length}</td><td class="r num">${a.filter(l=>l.repliedAt).length} <span style="color:var(--ink3)">${pct(a.filter(l=>l.repliedAt).length,a.filter(l=>l.sentAt).length)}</span></td><td class="r num">${a.filter(l=>l.dealAt).length}</td></tr>`}).join("")}</tbody></table></div></div>`;
+  const tbl=(t,f)=>`<div class="panel"><h3>${t}</h3><div class="tw" style="border:0"><table><thead><tr><th></th><th class="r">Найдено</th><th class="r">Ср. оценка</th><th class="r">Отпр.</th><th class="r">Ответы</th><th class="r">Прозвонили</th></tr></thead><tbody>${by(f).map(([k,a])=>{const sc=a.filter(l=>l.ai);return`<tr style="cursor:default"><td>${esc(k)}</td><td class="r num">${a.length}</td><td class="r num">${sc.length?Math.round(sc.reduce((s,l)=>s+l.ai.score,0)/sc.length):"—"}</td><td class="r num">${a.filter(l=>l.sentAt).length}</td><td class="r num">${a.filter(l=>l.repliedAt).length} <span style="color:var(--ink3)">${pct(a.filter(l=>l.repliedAt).length,a.filter(l=>l.sentAt).length)}</span></td><td class="r num">${a.filter(l=>l.calledAt).length}</td></tr>`}).join("")}</tbody></table></div></div>`;
   return`<div class="ph"><div><h1>Метрики</h1><p>Всё считается по реальным данным базы. На малых выборках проценты нестабильны — смотрите на абсолютные числа.</p></div></div>
   <div class="kpis">
    <div class="kpi"><div class="l">Лидов в базе</div><div class="v">${leads.length}</div><div class="s">${counts().queue} ждут проверки</div></div>
@@ -711,7 +711,7 @@ function renderDrawer(){
     ${(()=>{const dd=dupsOf(l,l.id),hard=dd.filter(d=>/телефон|email/.test(d.why)),peers=dd.filter(d=>!/телефон|email/.test(d.why));
       return(hard.length?`<div class="warnbox"><b>Возможный дубль</b>${hard.slice(0,3).map(d=>`<span>• <a data-open="${d.l.id}">${esc(d.l.company||d.l.name||"Без названия")}${d.l.name?" — "+esc(d.l.name):""}</a> — совпадает ${d.why} · ${esc(ST[d.l.status]||"")}</span>`).join("")}</div>`:"")
       +(peers.length?`<div class="sec"><h4>Ещё в этой компании <span class="num" style="color:var(--ink2)">${peers.length}</span></h4><div class="peers">${peers.slice(0,6).map(d=>`<a data-open="${d.l.id}"><b>${esc(d.l.name||"Без имени")}</b><span>${esc((d.l.contact||"").split(" · ")[0])}</span>${stChip(d.l.status)}</a>`).join("")}</div></div>`:"")})()}
-    ${s==="new"||s==="scored"?`<div class="row"><button class="btn ok" data-act="st" data-id="${l.id}" data-v="approved" ${dis}>Одобрить в работу</button><button class="btn no" data-act="st" data-id="${l.id}" data-v="rejected" ${dis}>Отклонить</button></div>`
+    ${s==="new"||s==="scored"?`<div class="row"><button class="btn ok" data-act="st" data-id="${l.id}" data-v="sent" ${dis}>Написали</button><button class="btn no" data-act="st" data-id="${l.id}" data-v="rejected" ${dis}>Отклонить</button></div>`
      :""}
     <div class="sec"><h4>Этап ${!["new","scored"].includes(s)?`<button class="btn sm ghost" data-act="st" data-id="${l.id}" data-v="new" style="margin-left:auto;text-transform:none;letter-spacing:0" ${dis}>Вернуть в «Проверку»</button>`:""}</h4><div class="stepper">${steps}</div><div class="hint" style="margin-top:6px">Нажмите на любой этап, чтобы перевести лида туда — вперёд или назад.</div></div>
     ${contactSection(l,dis)}
@@ -747,8 +747,10 @@ function renderDrawer(){
   </div>`});
 }
 function followPending(l){const pr=l.promise&&!l.promise.done&&!touchesOf(l).some(t=>t.ch==="email"&&t.t>l.promise.t);const ma=(l.mailAwait||0)>0&&!touchesOf(l).some(t=>t.ch==="email"&&t.t>l.mailAwait);return{pr:!!pr,aw:(l.tgAwait||0)>0,ma}}
-function followBox(l){const f=followPending(l);if(!f.pr&&!f.aw&&!f.ma)return"";
-  return`<div class="warnbox" style="background:var(--lo-soft,#fde8e8)"><b>${f.pr?"Обещали отправить "+esc(l.promise.what||"письмо"):f.aw?"Лид ждёт ответа в Telegram":"Лид ответил на почту — ждёт ответа"}</b>${f.ma&&!f.pr&&!f.aw?`<span>Ответ пришёл ${ftime(l.mailAwait)}, от нас ответа нет — текст в заметках</span>`:""}${f.pr&&l.promise.text?`<span>«${esc(l.promise.text)}» · ${ftime(l.promise.t)}</span>`:""}${f.aw?`<span>${f.pr?"Также не ответили в Telegram: ":""}лид написал(а) ${ftime(l.tgAwait)}, ответа от нас нет</span>`:""}<span class="hint">Бот напоминает в Telegram в будни в 10:00 и 15:00, пока не нажмёте «Сделано» (письмо, отправленное из CRM, закрывает напоминание само).</span><div class="row"><button class="btn sm ok" data-act="fudone" ${canWrite?"":"disabled"}>Сделано</button></div></div>`}
+function callBox(l){if(!callDue(l))return"";const late=l.nextDate<today();
+  return`<div class="warnbox" style="background:var(--lo-soft,#fde8e8)"><b>${l.callResult==="meeting"?(l.nextDate===today()?"Сегодня встреча/созвон":l.nextDate<today()?"Встреча прошла — отметьте итог":"Завтра встреча/созвон"):esc(l.nextStep||"Перезвонить")}${late&&l.callResult!=="meeting"?" — просрочено":""}</b><span>${fdate(l.nextDate)}${l.nextTime?" в "+esc(l.nextTime):""} · после звонка «${CRES[l.callResult]}» ${ftime(l.callAt)}</span><span class="hint">Бот напоминает в будни в 10:00 и 15:00, пока не нажмёте «Сделано» или не отметите новый итог звонка.</span><div class="row"><button class="btn sm ok" data-act="calldone" ${canWrite?"":"disabled"}>Сделано</button></div></div>`}
+function followBox(l){const f=followPending(l);if(!f.pr&&!f.aw&&!f.ma)return callBox(l);
+  return`<div class="warnbox" style="background:var(--lo-soft,#fde8e8)"><b>${f.pr?"Обещали отправить "+esc(l.promise.what||"письмо"):f.aw?"Лид ждёт ответа в Telegram":"Лид ответил на почту — ждёт ответа"}</b>${f.ma&&!f.pr&&!f.aw?`<span>Ответ пришёл ${ftime(l.mailAwait)}, от нас ответа нет — текст в заметках</span>`:""}${f.pr&&l.promise.text?`<span>«${esc(l.promise.text)}» · ${ftime(l.promise.t)}</span>`:""}${f.aw?`<span>${f.pr?"Также не ответили в Telegram: ":""}лид написал(а) ${ftime(l.tgAwait)}, ответа от нас нет</span>`:""}<span class="hint">Бот напоминает в Telegram в будни в 10:00 и 15:00, пока не нажмёте «Сделано» (письмо, отправленное из CRM, закрывает напоминание само).</span><div class="row"><button class="btn sm ok" data-act="fudone" ${canWrite?"":"disabled"}>Сделано</button></div></div>`+callBox(l)}
 function quickBar(l){
   const ph=tgNum(l.phone),u=tgUser(l),em=String(l.email||"").trim();
   const who_=[l.name,(l.contact||"").split(" · ")[0]].filter(Boolean).join(" — ");
@@ -767,15 +769,46 @@ function contactSection(l,dis){
     <div class="tbtns" style="margin-top:8px"><span class="hint" style="align-self:center">Отметить, что связались:</span>${["email","messenger","call"].map(k=>`<button class="btn sm" data-act="touch" data-v="${k}" ${dis}>${ico(k)} ${CH[k]}</button>`).join("")}</div>
     ${ts.length?`<div class="tlist" style="margin-top:10px">${ts.slice(-5).reverse().map(x=>`<div><span class="num">${ftime(x.t)}</span>${ico(x.ch)}<span>${CH[x.ch]}</span><span class="nt">${esc(x.note||"")}</span><span style="color:var(--ink3);margin-left:auto;flex:none">${esc(who(x.by))}</span>${!x.auto&&!dis?`<button class="btn sm ghost" data-act="deltouch" data-t="${x.t}" data-v="${x.ch}" title="Удалить отметку (если ошибочно)" aria-label="Удалить отметку" style="flex:none;padding:0 6px;min-height:0;line-height:1.4">×</button>`:""}</div>`).join("")}${ts.length>5?`<div class="hint">…и ещё ${ts.length-5} раньше</div>`:""}</div>`:'<div class="hint" style="margin-top:8px">Ещё не связывались.</div>'}
   </div>
+  ${callSection(l,dis)}
   <div class="sec"><h4>Ответ лида ${l.respAt?`<span class="num" style="color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">${ftime(l.respAt)}</span>`:""}</h4>
     <div class="rseg">${Object.entries(RESP).map(([k,t])=>`<button data-act="resp" data-v="${k}" class="${l.resp===k?"on":""}" ${dis} aria-pressed="${l.resp===k}">${t}</button>`).join("")}</div>
     ${l.resp==="refused"?`<div class="fld" style="margin-top:8px"><label for="d_lr">Причина отказа</label><select id="d_lr" data-f="lossReason" ${dis}><option value="">— выберите —</option>${LOSS.map(x=>`<option ${l.lossReason===x?"selected":""}>${x}</option>`).join("")}</select></div>`:""}
-    ${l.resp==="agreed"?'<div class="hint" style="margin-top:8px">Лид перешёл в «Сделка в работе». Заполните сумму в блоке «Деньги».</div>':l.resp==="interest"?'<div class="hint" style="margin-top:8px">Поставьте следующий шаг ниже, чтобы не потерять интерес.</div>':""}
+    ${l.resp==="agreed"?'<div class="hint" style="margin-top:8px">Договорились — когда будет оплата, переведите лида в «Выиграно» и заполните сумму в блоке «Деньги».</div>':l.resp==="interest"?'<div class="hint" style="margin-top:8px">Поставьте следующий шаг ниже, чтобы не потерять интерес.</div>':""}
   </div>`;
 }
+const CRES={noanswer:"Не дозвонились",callback:"Просили перезвонить",interest:"Интерес, выслать КП",meeting:"Назначили встречу",refused:"Отказ"};
+const CRCOL={noanswer:"var(--ink3)",callback:"var(--mid)",interest:"var(--accent)",meeting:"var(--hi)",refused:"var(--lo)"};
+function addDays(n){const d=new Date();d.setDate(d.getDate()+n);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function callChip(l){return l.callResult&&!["won","lost"].includes(l.status)||l.callResult==="refused"?`<span class="chip" style="color:${CRCOL[l.callResult]}"><span class="dot"></span><span style="color:var(--ink2)">${ico("call")} ${CRES[l.callResult]}${l.callResult==="noanswer"&&(l.callTries||0)>1?" ×"+l.callTries:""}</span></span>`:""}
+function callDue(l){if(!l.callResult||["won","lost","rejected"].includes(l.status)||!l.nextDate||!l.callTask)return 0;const t=today();if(l.callResult==="meeting"){return l.nextDate<=addDays(1)?1:0}return l.nextDate<=t?1:0}
+function callSection(l,dis){
+  const nt=l.callResult&&l.callTask?`<div class="hint" style="margin-top:8px">Итог: <b>${CRES[l.callResult]}</b>${l.callAt?" · "+ftime(l.callAt):""}${l.nextDate?` · дальше: ${esc(l.nextStep||"")} — ${fdate(l.nextDate)}${l.nextTime?" "+esc(l.nextTime):""}`:""}</div>`:"";
+  return`<div class="sec"><h4>Итог звонка</h4>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><div class="fld" style="flex:1;min-width:130px"><label for="d_cd">Дата (перезвон / встреча)</label><input type="date" id="d_cd" ${dis}></div><div class="fld" style="width:110px"><label for="d_ct">Время</label><input type="time" id="d_ct" ${dis}></div></div>
+    <div class="tbtns" style="margin-top:8px">${Object.entries(CRES).map(([k,t])=>`<button class="btn sm${l.callResult===k&&l.callTask?" ok":""}" data-act="callres" data-v="${k}" ${dis}>${t}</button>`).join("")}</div>
+    <div class="hint" style="margin-top:6px">Кнопка сама отметит звонок, переведёт в «Прозвонили» и поставит напоминание: не дозвонились — завтра; просили перезвонить / встреча — на выбранную дату; КП — сегодня и дожать через 3 дня; отказ — вернуться через 3 месяца.</div>${nt}
+  </div>`}
+async function setCallRes(id,v){
+  const l=L(id),now=Date.now(),note=($("#d_tn")?.value||"").trim(),cd=$("#d_cd")?.value||"",ct=$("#d_ct")?.value||"";
+  if((v==="callback"||v==="meeting")&&!cd){toast("Выберите дату в поле «Дата»");$("#d_cd")?.focus();return}
+  const o={touches:[...(l.touches||[]),{t:now,by:myId,ch:"call",note:CRES[v]+(note?" — "+note:"")}],lastTouchAt:now,callResult:v,callAt:now,callTask:true,autoStep:true,nextTime:"",log:[...(l.log||[]),{t:now,c:v,by:myId}]};
+  if(v==="refused"){stagePatch(l,"lost",o,now);o.resp="refused";o.respAt=now;o.nextDate=addDays(90);o.nextStep="Вернуться к лиду (отказ по звонку)"}
+  else{stagePatch(l,"called",o,now);
+    if(v==="noanswer"){o.callTries=(l.callResult==="noanswer"?(l.callTries||1):0)+1;o.nextDate=addWorkDays(1);o.nextStep="Перезвонить (не дозвонились"+(o.callTries>1?", попытка "+(o.callTries+1):"")+")"}
+    if(v==="callback"){o.nextDate=cd;o.nextTime=ct;o.nextStep="Перезвонить (просили)"+(ct?" в "+ct:"")}
+    if(v==="interest"){o.resp="interest";o.respAt=now;o.nextDate=today();o.nextStep="Отправить КП, дожать "+fdate(addDays(3));o.kpFollow=addDays(3)}
+    if(v==="meeting"){o.resp="agreed";o.respAt=now;o.nextDate=cd;o.nextTime=ct;o.nextStep="Встреча/созвон "+fdate(cd)+(ct?" "+ct:"")}
+    if(v!=="noanswer")o.callTries=0}
+  await upd(id,o);render();toast(`Звонок: ${CRES[v]} · напоминание ${fdate(o.nextDate)}${o.nextTime?" "+o.nextTime:""}`);
+  if(v!=="noanswer")notify(id,"resp");
+}
+async function callDone(id){const l=L(id),o={callTask:false};
+  if(l.callResult==="interest"&&l.kpFollow&&/^Отправить КП/.test(l.nextStep||"")){o.callTask=true;o.nextDate=l.kpFollow;o.nextStep="Дожать по КП (отправили "+fdate(today())+")";o.kpFollow=""}
+  else{o.nextStep="";o.nextDate="";o.nextTime="";o.autoStep=false}
+  await upd(id,o);render();toast(o.callTask?"КП отмечено, дожать "+fdate(o.nextDate):"Напоминание снято")}
 function addWorkDays(n){const d=new Date();while(n>0){d.setDate(d.getDate()+1);if(d.getDay()%6)n--}d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function notify(id,kind){try{sb?.functions?.invoke("notify",{body:{type:"event",leadId:id,kind}}).catch(()=>{})}catch(e){}}
-const RANK=["new","scored","approved","sent","replied","qualified","deal","won"];
+const RANK=["new","scored","sent","replied","called","won"];
 function stagePatch(l,target,o,now){
   const cur=RANK.indexOf(o.status||l.status),to=RANK.indexOf(target);
   if(target!=="lost"&&(cur<0||cur>=to))return;
@@ -801,7 +834,7 @@ async function setResp(id,v){
   const o={resp:v,respAt:now,log:[...(l.log||[]),{t:now,r:v,by:myId}]};
   if(v!=="noanswer")stagePatch(l,"sent",o,now);
   if(v==="interest")stagePatch(l,"replied",o,now);
-  if(v==="agreed")stagePatch(l,"deal",o,now);
+  if(v==="agreed")stagePatch(l,"called",o,now);
   if(v==="refused")stagePatch(l,"lost",o,now);
   let rem="";
   const RM={noanswer:[2,"Повторный контакт: нет ответа"],interest:[2,"Дожать интерес: уточнить дату, формат, бюджет"],agreed:[1,"Согласовать детали и выставить КП"]}[v];
@@ -858,7 +891,7 @@ async function sendEmail(id){
 async function logMsg(id,m){const l=L(id),now=Date.now();const o={messages:[...(l.messages||[]),{t:now,by:myId,...m}]};
   o.lastTouchAt=now;stagePatch(l,"sent",o,now);
   await upd(id,o)}
-const SNAP_KEYS=["status","approvedAt","sentAt","repliedAt","qualifiedAt","dealAt","wonAt"];
+const SNAP_KEYS=["status","sentAt","repliedAt","calledAt","wonAt"];
 async function setSt(id,v,opts){
   const l=L(id);if(!l||l.status===v)return;
   const prev={};SNAP_KEYS.forEach(k=>prev[k]=l[k]??null);
@@ -1132,7 +1165,7 @@ const MAP=[["url",/ссылк|url|link|http/i],["nextStep",/след.*шаг|nex
 const FL={url:"Ссылка",text:"Текст",company:"Компания",source:"Источник",segment:"Сегмент",contact:"Роль",name:"ФИО",phone:"Телефон",email:"Email",status:"Статус",replyNote:"Заметки",nextStep:"След. шаг",nextDate:"Дата шага",amount:"Сумма"};
 function mapHeaders(h){const m={},used=new Set();h.forEach((x,i)=>{for(const[k,re]of MAP){if(!used.has(k)&&re.test(x)){m[i]=k;used.add(k);break}}});return m}
 function mapStatus(s){s=(s||"").toLowerCase();if(!s)return"new";for(const[k,v]of Object.entries(ST))if(v.toLowerCase()===s)return k;
-  const r=[[/закры|выигр|оплач|won/,"won"],[/отказ|потер|lost|не интерес/,"lost"],[/отклон|reject/,"rejected"],[/сделк|договор|кп/,"deal"],[/квалиф/,"qualified"],[/ответ|repl/,"replied"],[/отправ|написал|sent/,"sent"],[/одобр|в работ/,"approved"]];
+  const r=[[/закры|выигр|оплач|won/,"won"],[/отказ|потер|lost|не интерес/,"lost"],[/отклон|reject/,"rejected"],[/прозвон|звонил|call/,"called"],[/сделк|договор|кп|квалиф|ответ|repl/,"replied"],[/отправ|написал|sent|связал/,"sent"],[/одобр|в работ/,"new"]];
   for(const[re,k]of r)if(re.test(s))return k;return"new"}
 function mapDate(s){s=(s||"").trim();let m=s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})$/);if(m)return`${m[3].length==2?"20"+m[3]:m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;m=s.match(/^\d{4}-\d{2}-\d{2}/);return m?m[0]:""}
 function openImport(){
@@ -1169,7 +1202,7 @@ async function doImport(){
     const doc={url:o.url||"",text:o.text||"",company:o.company||"",contact:o.contact||"",name:o.name||"",phone:o.phone||"",email:o.email||"",source:SRC.includes(o.source)?o.source:(o.source||"Google Таблица"),segment:SEG.find(s=>s.toLowerCase()===(o.segment||"").toLowerCase())||(o.segment||"Не определён"),
       createdBy:myId||"",status:st,replyNote:o.replyNote||"",nextStep:o.nextStep||"",nextDate:mapDate(o.nextDate),createdAt:now+n,log:[{t:now,s:st}]};
     const a=parseFloat(String(o.amount||"").replace(/[^\d.,]/g,"").replace(",","."));if(a)doc.amount=a;
-    if(STAMP[st]){const order=["approved","sent","replied","qualified","deal","won"];order.slice(0,order.indexOf(st)+1).forEach(k=>doc[STAMP[k]]=now)}
+    if(STAMP[st]){const order=["sent","replied","called","won"];order.slice(0,order.indexOf(st)+1).forEach(k=>doc[STAMP[k]]=now)}
     try{await dbSet(o._id,doc);n++;b.textContent=`Загружаю ${n}/${recs.length}…`}catch(e){toast("Ошибка записи: "+(e.message||e.code));break}
   }
   closeModal();toast(`Импортировано: ${n}`);view="all";lsSet("view",view);render();
@@ -1198,7 +1231,7 @@ document.addEventListener("click",async e=>{
       else if(act==="mclose")closeModal();
       else if(act==="save0")await saveNew(false);
       else if(act==="close"){openId=null;renderDrawer()}
-      else if(act==="st"){const adv=b.closest("#drawer")&&["approved","rejected"].includes(b.dataset.v)&&view==="queue";const i=navList.indexOf(id),nx=adv?(navList[i+1]||navList[i-1]):null;await setSt(id,b.dataset.v);if(nx&&L(nx))openLead(nx)}
+      else if(act==="st"){const adv=b.closest("#drawer")&&["sent","rejected"].includes(b.dataset.v)&&view==="queue";const i=navList.indexOf(id),nx=adv?(navList[i+1]||navList[i-1]):null;await setSt(id,b.dataset.v);if(nx&&L(nx))openLead(nx)}
       else if(act==="nav")navGo(+b.dataset.v);
       else if(act==="qtouch"){const v=b.dataset.v;setTimeout(()=>toast("Связались? Отметить контакт",{label:"Отметить",fn:()=>addTouch(id,v)}),400)}
       else if(act==="qcopy"){try{await navigator.clipboard.writeText(b.dataset.v);toast("Скопировано: "+b.dataset.v)}catch(_){toast(b.dataset.v)}}
@@ -1210,6 +1243,8 @@ document.addEventListener("click",async e=>{
       else if(act==="touch")await addTouch(id,b.dataset.v);
       else if(act==="deltouch")await delTouch(id,b.dataset.t,b.dataset.v);
       else if(act==="resp")await setResp(id,b.dataset.v);
+      else if(act==="callres")await setCallRes(id,b.dataset.v);
+      else if(act==="calldone")await callDone(id);
       else if(act==="email"){snd={id,mode:"confirm"};renderDrawer()}
       else if(act==="emailyes")await sendEmail(id);
       else if(act==="sndno"){snd=null;renderDrawer()}
