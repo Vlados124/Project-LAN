@@ -297,6 +297,91 @@ body.auth .shell,body.auth .top .btn{display:none}
 .login{min-height:calc(100vh - 57px);display:grid;place-items:center;padding:24px 16px}
 .login form{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
 .login h2{margin:0;font-family:var(--f-disp);font-weight:500;font-size:20px}
+
+/* ===== Телефон: нижнее меню, поиск во всю ширину, воронка свайпом, карточки вместо таблицы ===== */
+@media (max-width:640px){
+  body{font-size:15px}
+  .top{flex-wrap:wrap;row-gap:8px;padding-block:8px}
+  .top .search{order:10;flex:1 0 100%;max-width:none}
+  .top .search input{height:40px;font-size:16px}
+  .top .btn[data-act="import"]{display:none}
+  .top .scope{display:inline-flex}
+  .top .scope button[data-scope="none"]{display:none}
+  .top .btn.pri{width:40px;height:40px;padding:0;justify-content:center}
+  .shell{min-height:0}
+  .rail{position:fixed!important;top:auto!important;left:0;right:0;bottom:0;z-index:35;height:auto!important;flex-direction:row;justify-content:space-around;gap:0;overflow:visible!important;
+    background:var(--surface)!important;border:0;border-top:1px solid var(--line)!important;padding:4px max(4px,env(safe-area-inset-left,0px)) calc(4px + env(safe-area-inset-bottom,0px))!important;box-shadow:0 -4px 16px rgba(20,25,40,.06)}
+  .rail button{flex:1 1 0;min-width:0;flex-direction:column;gap:2px;padding:6px 2px!important;font-size:10.5px;font-weight:500;text-align:center;position:relative;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rail button.on{box-shadow:none;background:var(--accent-soft);color:var(--accent)}
+  .rail svg{width:21px;height:21px;margin:0 auto}
+  .rail .cnt{display:none}
+  .rail .cnt.hot,.rail .cnt.warn{display:block;position:absolute;top:2px;left:calc(50% + 6px);margin:0;font-size:10px;line-height:15px;min-width:15px;padding:0 4px;text-align:center}
+  main{padding-top:14px;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .ph{margin-bottom:12px}.ph h1{font-size:19px}.ph p{font-size:12.5px}
+  /* фильтры — одной прокручиваемой строкой */
+  .filters{flex-wrap:nowrap;overflow-x:auto;margin-inline:-16px;padding:0 16px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .filters::-webkit-scrollbar{display:none}
+  .filters>*{flex:none}.filters .seg{flex-wrap:nowrap}
+  select.f{height:38px;font-size:15px}
+  /* воронка: одна колонка на экран, листается свайпом */
+  .board{scroll-snap-type:x mandatory;margin-inline:-16px;padding:0 16px 12px;gap:10px;scroll-padding-inline:16px}
+  .col{flex:0 0 calc(100vw - 44px);max-height:none;scroll-snap-align:start}
+  .colb{overflow:visible}
+  .kc{cursor:pointer;padding:12px}
+  .kc b{font-size:15px}
+  /* все лиды: таблица превращается в карточки */
+  .tw:has(table.lt){background:transparent;border:0;overflow:visible}
+  table.lt thead{display:none}
+  table.lt,table.lt tbody{display:block}
+  table.lt tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
+  table.lt td{display:block;padding:0;border:0;background:transparent!important}
+  table.lt td:nth-child(1){grid-column:1/-1}
+  table.lt td:nth-child(1) .sub{max-width:none;white-space:normal}
+  table.lt td:nth-child(2){grid-column:1/-1}
+  table.lt td:nth-child(3),table.lt td:nth-child(7),table.lt td:nth-child(8),table.lt td:nth-child(11),table.lt td:nth-child(12){display:none}
+  table.lt td:nth-child(4){grid-column:1}
+  table.lt td:nth-child(5){grid-column:2;grid-row:3;justify-self:end}
+  table.lt td:nth-child(6){grid-column:1/-1}
+  table.lt td:nth-child(6):has(>span:only-child[style]){display:none}
+  table.lt td:nth-child(9){grid-column:1}
+  table.lt td:nth-child(9) .sub{max-width:none;white-space:normal}
+  table.lt td:nth-child(9):empty,table.lt td:nth-child(9):has(.sub:empty){display:none}
+  table.lt td:nth-child(10){grid-column:2;justify-self:end;color:var(--ink3);font-size:12.5px}
+  table.lt td:nth-child(10):empty{display:none}
+  /* дела */
+  .trow{padding:12px}
+  .trow .row{flex-wrap:wrap!important}
+  /* карточка лида на весь экран, крупные кнопки, без авто-зума на iPhone */
+  .drawer{width:100%;box-shadow:none}
+  .dh{padding:10px 14px}
+  .db{padding:14px 14px calc(40px + env(safe-area-inset-bottom,0px));gap:16px}
+  .fld input,.fld select,.fld textarea,.sec input,.sec select,.sec textarea{font-size:16px}
+  .fld input,.fld select{min-height:42px}
+  .btn{height:40px}
+  .btn.sm,.qbar .btn{height:38px;font-size:14px;padding:0 12px}
+  .qbar{gap:8px}
+  .qbar .btn{flex:1 1 auto;justify-content:center}
+  .tbtns .btn{flex:1 1 calc(50% - 6px);justify-content:center}
+  .stepper{gap:6px}.stepper button{font-size:13.5px;padding:8px 11px}
+  .rseg button{padding:11px 6px;font-size:14px}
+  .nav .btn{width:40px}
+  .tlist div{flex-wrap:wrap}
+  .mbox{padding:16px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .two{grid-template-columns:minmax(0,1fr)}
+}
+.stabs,.mob{display:none}
+@media (max-width:640px){
+  .dsk{display:none}.mob{display:inline}.ph .act.mob{display:flex}
+  .stabs{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 10px;padding:0 16px;scrollbar-width:none}
+  .stabs::-webkit-scrollbar{display:none}
+  .stabs button{all:unset;flex:none;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:13.5px;font-weight:500;color:var(--ink2);cursor:pointer}
+  .stabs .dot{width:8px;height:8px;border-radius:50%}
+  .stabs .num{color:var(--ink3);font-size:12px}
+  .empty-col{display:none}
+  .colb:not(:has(.kc))::after{content:"Пусто";display:block;text-align:center;color:var(--ink3);font-size:13px;padding:16px}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
@@ -551,7 +636,7 @@ function vBoard(){
     const items=leads.filter(l=>l.status===s&&match(l)&&bOk(l)).sort((a,b)=>(a.nextDate||"9")<(b.nextDate||"9")?-1:1);
     nav.push(...items.map(l=>l.id));
     const sum=items.reduce((a,l)=>a+(+l.amount||0),0);
-    return`<section class="col" data-drop="${s}"><div class="colh"><span class="chip" style="color:${SCOL[s]};border:0;background:none;padding:0"><span class="dot"></span></span>${ST[s]} <span class="n">${items.length}</span>${sum?`<span class="sum">${rub(sum)}</span>`:""}</div>
+    return`<section class="col" id="col-${s}" data-drop="${s}"><div class="colh"><span class="chip" style="color:${SCOL[s]};border:0;background:none;padding:0"><span class="dot"></span></span>${ST[s]} <span class="n">${items.length}</span>${sum?`<span class="sum">${rub(sum)}</span>`:""}</div>
     <div class="colb">${items.length?items.map(l=>`<article class="kc" draggable="true" data-open="${l.id}" data-drag="${l.id}">
       <div class="t"><b>${esc(l.company||"Без названия")}</b>${scoreEl(l)}</div>
       ${l.nextStep||l.nextDate?`<div class="ns ${l.nextDate&&l.nextDate<t&&ACTIVE.includes(s)?"late":""}">${l.nextDate?`<span class="num">${fdate(l.nextDate)}</span>`:""}<span>${esc(l.nextStep||"")}</span></div>`:(ACTIVE.includes(s)?'<div class="ns" style="color:var(--ink3)">Нет следующего шага</div>':"")}
@@ -561,7 +646,8 @@ function vBoard(){
   navList=nav;
   const inB=leads.filter(l=>BOARD.includes(l.status)&&match(l));
   const kseg=`<div class="filters"><div class="seg">${[["","Все",inB.length],...KIND.map(([k,t])=>[k,t,inB.filter(l=>kindOf(l)===k).length]),["srm","СРМ Жени",inB.filter(l=>l.source===SRM).length]].filter(x=>x[0]===""||x[0]==="srm"||x[2]||bKind===x[0]).map(([k,t,n])=>`<button data-bkind="${k}" class="${bKind===k?"on":""}">${k?`<span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${KCOL[k]||"#c2185b"};margin-right:5px;vertical-align:1px"></span>`:""}${t} <span class="num">${n}</span></button>`).join("")}</div></div>`;
-  return`<div class="ph"><div><h1>Воронка</h1><p>Перетаскивайте карточки между этапами. Клик открывает лида целиком.</p></div></div>${scopeNote(l=>BOARD.includes(l.status))}${kseg}<div class="board">${cols}</div>`;
+  const stabs=`<div class="stabs">${BOARD.map(s=>`<button data-bjump="${s}"><span class="dot" style="background:${SCOL[s]}"></span>${ST[s]} <span class="num">${leads.filter(l=>l.status===s&&match(l)&&bOk(l)).length}</span></button>`).join("")}</div>`;
+  return`<div class="ph"><div><h1>Воронка</h1><p><span class="dsk">Перетаскивайте карточки между этапами. </span>Клик открывает лида целиком.<span class="mob"> Этапы листаются свайпом.</span></p></div></div>${scopeNote(l=>BOARD.includes(l.status))}${kseg}${stabs}<div class="board">${cols}</div>`;
 }
 
 /* Все лиды */
@@ -577,7 +663,7 @@ function vAll(){
   const th=(k,t,c="")=>`<th data-sort="${k}" class="${c}">${t}${sort.k===k?(sort.d>0?" ↑":" ↓"):""}</th>`;
   return`<div class="ph"><div><h1>Все лиды</h1><p>${list.length} из ${leads.length}. Сортировка по клику на заголовок.</p></div><div class="act"><button class="btn" data-act="export" ${dl?"":"disabled"}>Выгрузить CSV</button></div></div>
   ${scopeNote(()=>true)}<div class="filters"><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select><select class="f" id="ftz" data-filter="tz">${opt([["0","МСК"],["-1","МСК−1"],["1","МСК+1"],["2","МСК+2"],["3","МСК+3"],["4","МСК+4"],["5","МСК+5"],["6","МСК+6"],["7","МСК+7"],["8","МСК+8"],["9","МСК+9"],["none","Без региона"]],F.tz,"Часовой пояс: любой")}</select><select class="f" id="fct" data-filter="ct">${opt([["no","Ещё не связывались"],["any","Связывались"],["email","Связывались по почте"],["messenger","В мессенджере"],["call","Звонили"]],F.ct,"Связь: любая")}</select><select class="f" id="fown" data-filter="own">${opt([["none","Без ответственного"],...TEAM.map(e=>[e,e===myId?e+" (вы)":e])],F.own,"Ответственный: все")}</select><select class="f" id="fresp" data-filter="resp">${opt([["none","Без ответа (не отмечен)"],...Object.entries(RESP)],F.resp,"Ответ: любой")}</select><button class="btn sm ${F.reach==="noph"?"pri":""}" data-act="noph" title="Показать лидов без номера телефона">${ico("call",13)} Нет номера <span class="num">${leads.filter(l=>match(l)&&!reach(l).ph).length}</span></button><select class="f" id="freach" data-filter="reach">${opt(REACH,F.reach,"Контакты: любые")}</select>${F.st||F.src||F.seg||F.ct||F.resp||F.own||F.reach?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
-  <div class="tw"><table><thead><tr>${th("company","Компания")}${th("reach","Контакты")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}${th("owner","Ответств.")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
+  <div class="tw"><table class="lt"><thead><tr>${th("company","Компания")}${th("reach","Контакты")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}${th("owner","Ответств.")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
   ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(l.company||"—")}</div><div class="sub">${esc(l.name||(l.contact||"").split(" · ")[0]||l.segment||"")}${l.region?` · 📍 ${esc(l.city||l.region)}${(utcOf(l.region)??3)!==3?" ("+tzStr(l.region).split(" (")[1]:""}`:""}</div></td><td>${reachBadges(l)}</td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td>${ownEl(l,true)}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="12" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
   </tbody></table></div>`;
 }
@@ -665,7 +751,7 @@ async function tgCheckInBrowser(token){if(!/^\d+:[\w-]{20,}$/.test(token))return
 async function tgLoad(){try{tgState=await tgCall("status")}catch(e){tgState={connected:false,msg:"Не удалось проверить: "+e.message,err:1}}if(view==="settings")renderMain()}
 function vSettings(){
   if(!tgState&&sb)tgLoad();
-  return`<div class="ph"><div><h1>Настройки</h1></div></div>
+  return`<div class="ph"><div><h1>Настройки</h1></div>${myId?`<div class="act mob"><span class="hint" style="align-self:center">${esc(myId)}</span><button class="btn sm" data-act="logout">Выйти</button></div>`:""}</div>
   <div class="panel"><h3>Описание Project LAN</h3><p class="hint" style="margin:-6px 0 10px">Общая шпаргалка для команды: форматы, игры, города, условия, кейсы с corp.projectlan.ru. Пригодится для писем и для AI-оценки, если её подключим.</p>
    <div class="fld"><textarea id="c_desc" style="min-height:180px" ${canWrite?"":"disabled"}>${esc(cfg.desc)}</textarea></div>
    <div class="row" style="margin-top:10px"><button class="btn pri" data-act="cfg" ${canWrite?"":"disabled"}>Сохранить описание</button></div></div>
@@ -1217,6 +1303,7 @@ async function doExport(){
 
 /* ---------- events ---------- */
 document.addEventListener("click",async e=>{
+  const bj=e.target.closest("[data-bjump]");if(bj){document.getElementById("col-"+bj.dataset.bjump)?.scrollIntoView({behavior:"smooth",inline:"start",block:"nearest"});return}
   const v=e.target.closest("[data-view]");if(v){view=v.dataset.view;lsSet("view",view);banner="";renderRail();renderMain();window.scrollTo(0,0);return}
   const sc=e.target.closest("[data-scope]");if(sc){scope=sc.dataset.scope;lsSet("scope",scope);renderRail();renderMain();return}
   const bk=e.target.closest("[data-bkind]");if(bk){bKind=bk.dataset.bkind;lsSet("bkind",bKind);renderMain();return}
