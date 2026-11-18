@@ -51,23 +51,60 @@ async function send(text: string) {
 function mskToday() {
   return new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
 }
-const ACTIVE = ["approved", "sent", "replied", "qualified", "deal"];
+const ACTIVE = ["approved", "sent", "replied", "called", "qualified", "deal"];
+const EV_ICO: Record<string, string> = {
+  call: "📞", write: "💬", meeting: "🤝", kp: "📄", remind: "🔔", other: "•",
+};
 
 async function digest() {
-  const { data, error } = await admin.from("leads").select("data");
+  const { data, error } = await admin.from("leads").select("id,data");
   if (error) return { ok: false, error: error.message };
+  const { data: evRows } = await admin.from("config").select("id,data").like("id", "ev_%");
   const t = mskToday();
-  const act = (data ?? []).map((r) => r.data as Record<string, any>).filter((l) => ACTIVE.includes(l.status));
-  const late = act.filter((l) => l.nextDate && l.nextDate < t), now = act.filter((l) => l.nextDate === t);
-  const noStep = act.filter((l) => !l.nextDate).length;
+  const byId = new Map<string, Record<string, any>>();
+  for (const r of data ?? []) if (r.data && !(r.data as any).archived) byId.set(r.id, r.data as Record<string, any>);
+  type Item = { date: string; time: string; ico: string; head: string; body: string; owner: string };
+  const items: Item[] = [];
+  const leadsWithEv = new Set<string>();
+  for (const r of evRows ?? []) {
+    const e = (r.data ?? {}) as Record<string, any>;
+    if (e.done || e.deleted || !e.date) continue;
+    if (e.leadId) leadsWithEv.add(String(e.leadId));
+    const l = e.leadId ? byId.get(String(e.leadId)) : undefined;
+    items.push({
+      date: String(e.date),
+      time: String(e.time ?? ""),
+      ico: EV_ICO[String(e.kind ?? "")] ?? "•",
+      head: String(l?.company || e.leadName || ""),
+      body: String(e.title || "Напоминание"),
+      owner: String(e.owner ?? ""),
+    });
+  }
+  for (const [lid, l] of byId.entries()) {
+    if (!l.nextDate) continue;
+    if (!(ACTIVE.includes(l.status) || l.status === "new" || l.status === "scored" || (l.status === "lost" && l.callTask))) continue;
+    items.push({
+      date: String(l.nextDate),
+      time: String(l.nextTime ?? ""),
+      ico: EV_ICO[String(l.nextKind ?? "")] ?? "•",
+      head: String(l.company || "Без названия"),
+      body: String(l.nextStep || "шаг не записан"),
+      owner: String(l.owner ?? ""),
+    });
+    leadsWithEv.add(lid);
+  }
+  const cmp = (a: Item, b: Item) => a.date !== b.date ? (a.date < b.date ? -1 : 1) : (a.time || "99:99").localeCompare(b.time || "99:99");
+  const late = items.filter((x) => x.date < t).sort(cmp);
+  const now = items.filter((x) => x.date === t).sort(cmp);
+  const noStep = [...byId.entries()].filter(([id, l]) => ACTIVE.includes(l.status) && !leadsWithEv.has(id)).length;
   if (!late.length && !now.length) return { ok: true, skipped: "no tasks" };
-  const line = (l: any) =>
-    `• <b>${h(l.company || "Без названия")}</b> — ${h(l.nextStep || "шаг не записан")}${l.nextDate && l.nextDate < t ? ` <i>(с ${h(l.nextDate.split("-").reverse().join("."))})</i>` : ""}${l.owner ? ` · ${h(short(l.owner))}` : ""}`;
-  let msg = `☀️ <b>Дела на сегодня</b>\n`;
+  const line = (x: Item) =>
+    `${x.ico}${x.time ? ` <b>${h(x.time)}</b>` : ""} ${x.head ? `<b>${h(x.head)}</b> — ` : ""}${h(x.body)}${x.date < t ? ` <i>(с ${h(x.date.split("-").reverse().join("."))})</i>` : ""}${x.owner ? ` · ${h(short(x.owner))}` : ""}`;
+  let msg = `☀️ <b>Расписание на сегодня</b>\n`;
   if (late.length) msg += `\n🔴 Просрочено: ${late.length}\n` + late.slice(0, 10).map(line).join("\n") + (late.length > 10 ? `\n…и ещё ${late.length - 10}` : "");
-  if (now.length) msg += `\n\n🟡 Сегодня: ${now.length}\n` + now.slice(0, 10).map(line).join("\n") + (now.length > 10 ? `\n…и ещё ${now.length - 10}` : "");
+  if (now.length) msg += `\n\n🟡 Сегодня: ${now.length}\n` + now.slice(0, 12).map(line).join("\n") + (now.length > 12 ? `\n…и ещё ${now.length - 12}` : "");
   if (noStep) msg += `\n\n⚪ Без следующего шага: ${noStep}`;
-  msg += `\n\n<a href="${SITE}">Открыть CRM</a>`;
+  msg += `\n\n<a href="${SITE}">Открыть календарь CRM</a>`;
   return await send(msg);
 }
 

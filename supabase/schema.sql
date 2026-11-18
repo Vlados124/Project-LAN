@@ -27,7 +27,7 @@ create policy "members manage leads" on public.leads
   for all to authenticated
   using (public.is_member()) with check (public.is_member());
 
--- 3. Общие настройки (описание Project LAN)
+-- 3. Общие настройки (id = 'lan') и события календаря (id = 'ev_*': созвоны, напоминания, встречи)
 create table if not exists public.config (
   id text primary key,
   data jsonb not null default '{}'::jsonb

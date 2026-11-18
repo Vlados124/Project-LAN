@@ -12,6 +12,7 @@
   --ink:#161924;--ink2:#4c5264;--ink3:#7c8294;
   --accent:#2f4fd9;--accent-ink:#ffffff;--accent-soft:#e6eafd;
   --hi:#1f8a4c;--hi-soft:#e2f4ea;--mid:#b86a00;--mid-soft:#fbefd9;--lo:#c2353a;--lo-soft:#fbe5e6;
+  --meet:#7a3ec8;--meet-soft:#f1eafb;--kp:#0d7f8c;--kp-soft:#e1f4f6;
   --shadow:0 1px 2px rgba(20,25,40,.06),0 8px 24px rgba(20,25,40,.08);
   --f-ui:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-disp:"Unbounded","Onest",system-ui,sans-serif;
@@ -23,12 +24,14 @@
   --ink:#e9ebf2;--ink2:#b0b5c5;--ink3:#7f8598;
   --accent:#7d93ff;--accent-ink:#0f1220;--accent-soft:#232a4a;
   --hi:#55d18a;--hi-soft:#173326;--mid:#f2b04d;--mid-soft:#3a2c14;--lo:#ff7c80;--lo-soft:#3d1c1f;
+  --meet:#b794ff;--meet-soft:#2b2142;--kp:#4fd1df;--kp-soft:#153036;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#12141b;--surface:#1b1e28;--sunk:#161922;--line:#2b2f3c;--line2:#3a3f50;
   --ink:#e9ebf2;--ink2:#b0b5c5;--ink3:#7f8598;
   --accent:#7d93ff;--accent-ink:#0f1220;--accent-soft:#232a4a;
   --hi:#55d18a;--hi-soft:#173326;--mid:#f2b04d;--mid-soft:#3a2c14;--lo:#ff7c80;--lo-soft:#3d1c1f;
+  --meet:#b794ff;--meet-soft:#2b2142;--kp:#4fd1df;--kp-soft:#153036;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -156,7 +159,7 @@ td.r,th.r{text-align:right}
 td .co{font-weight:600}
 td .sub{color:var(--ink3);font-size:12px;max-width:34ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* tasks */
+/* tasks & calendar */
 .grp{margin-bottom:20px}
 .grp h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin:0 0 8px;display:flex;gap:8px;align-items:center}
 .grp h2 .num{color:var(--ink2)}
@@ -166,6 +169,153 @@ td .sub{color:var(--ink3);font-size:12px;max-width:34ch;white-space:nowrap;overf
 .trow .d{font:13px var(--f-num);color:var(--ink2)}
 .trow .s{min-width:0}.trow .s b{font-weight:600}.trow .s div{color:var(--ink2);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:520px){.trow{grid-template-columns:minmax(0,1fr) auto}.trow .d{grid-column:1/-1}}
+.cal-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.cal-nav{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:2px}
+.cal-nav .btn{height:28px;width:28px;padding:0;justify-content:center;border:0;border-radius:7px}
+.cal-nav .lbl{min-width:152px;text-align:center;font-weight:600;font-size:13.5px;padding:0 6px;white-space:nowrap}
+.cal-types{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.kfilt{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:99px;font-size:12.5px;font-weight:500;color:var(--ink2);background:var(--surface);border:1px solid var(--line);white-space:nowrap}
+.kfilt:hover{border-color:var(--line2)}
+.kfilt:focus-visible{outline:2px solid var(--accent)}
+.kfilt .ico{color:var(--ec,var(--ink2))}
+.kfilt .num{font-size:11.5px;color:var(--ink3)}
+.kfilt.on{background:var(--ebg,var(--accent-soft));border-color:color-mix(in srgb,var(--ec,var(--accent)) 45%,var(--line));color:var(--ec,var(--accent));font-weight:600}
+.kfilt.on .num{color:currentColor}
+.cal-layout{display:grid;grid-template-columns:minmax(0,1fr) 348px;gap:14px;align-items:start}
+@media (max-width:1080px){.cal-layout{grid-template-columns:minmax(0,1fr)}}
+.cal-month{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cal-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--sunk);border-bottom:1px solid var(--line)}
+.cal-dow span{padding:8px 4px;text-align:center;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3)}
+.cal-dow span.w{color:color-mix(in srgb,var(--lo) 55%,var(--ink3))}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-day{min-height:106px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:3px;cursor:pointer;position:relative;min-width:0;background:var(--surface)}
+.cal-day:nth-child(7n){border-right:0}
+.cal-day:nth-last-child(-n+7){border-bottom:0}
+.cal-day.wknd{background:color-mix(in srgb,var(--sunk) 55%,var(--surface))}
+.cal-day.out{background:var(--sunk)}
+.cal-day.out .dn{color:var(--ink3);opacity:.6}
+.cal-day.out .cal-pill{opacity:.65}
+.cal-day:hover{background:color-mix(in srgb,var(--accent-soft) 30%,var(--surface))}
+.cal-day.sel{box-shadow:inset 0 0 0 2px var(--accent);z-index:1;background:color-mix(in srgb,var(--accent-soft) 24%,var(--surface))}
+.cal-day.drop,.wk-slot.drop,.wk-all-c.drop{box-shadow:inset 0 0 0 2px var(--accent);background:var(--accent-soft)!important}
+.cal-dh{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:1px}
+.dn{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border-radius:99px;font:600 12.5px var(--f-num);color:var(--ink)}
+.cal-day.today .dn{background:var(--accent);color:var(--accent-ink)}
+.cal-add{all:unset;cursor:pointer;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:var(--ink3);opacity:0;flex:none}
+.cal-day:hover .cal-add,.cal-day.sel .cal-add,.cal-add:focus-visible{opacity:1}
+.cal-add:hover{background:var(--accent-soft);color:var(--accent)}
+.cal-pill{display:flex;align-items:center;gap:4px;padding:2px 6px;border-radius:5px;font-size:11.5px;line-height:1.35;min-width:0;cursor:pointer;border-left:2.5px solid var(--ec,var(--accent));background:var(--ebg,var(--accent-soft));color:var(--ink)}
+.cal-pill:hover{box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.cal-pill .ico{color:var(--ec,var(--accent));flex:none}
+.cal-pill .pt{font:600 10.5px var(--f-num);color:var(--ec,var(--accent));flex:none}
+.cal-pill .px{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;font-weight:500}
+.cal-pill.done{opacity:.52;text-decoration:line-through;background:var(--sunk);border-left-color:var(--line2)}
+.cal-pill.dragging,.wk-ev.dragging,.ev-card.dragging{opacity:.35}
+.cal-more{font-size:11px;font-weight:600;color:var(--ink3);padding:1px 5px}
+.cal-day:hover .cal-more{color:var(--accent)}
+.cal-dots{display:none}
+.cal-side{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;position:sticky;top:72px;max-height:calc(100vh - 90px);overflow-y:auto}
+@media (max-width:1080px){.cal-side{position:static;max-height:none}}
+.cal-sh{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.cal-sh h2{margin:0;font-family:var(--f-disp);font-weight:500;font-size:15.5px;letter-spacing:-.01em}
+.cal-sh .sub{font-size:12px;color:var(--ink3);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cal-quick{display:flex;gap:5px;flex-wrap:wrap}
+.cal-quick button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:500;background:var(--sunk);color:var(--ink2);border:1px solid var(--line)}
+.cal-quick button:hover{background:var(--ebg,var(--accent-soft));color:var(--ec,var(--accent));border-color:color-mix(in srgb,var(--ec,var(--accent)) 40%,var(--line))}
+.cal-quick button:focus-visible{outline:2px solid var(--accent)}
+.cal-quick .ico{color:var(--ec,var(--accent))}
+.ev-list{display:flex;flex-direction:column;gap:7px}
+.ev-card{border:1px solid var(--line);border-left:3px solid var(--ec,var(--accent));border-radius:10px;padding:9px 11px;background:var(--surface);display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start}
+.ev-card:hover{border-color:var(--line2);border-left-color:var(--ec,var(--accent));box-shadow:var(--shadow)}
+.ev-card.late{border-left-color:var(--lo);background:color-mix(in srgb,var(--lo-soft) 28%,var(--surface))}
+.ev-card.done{opacity:.62;border-left-color:var(--line2)}
+.ev-card.done .ev-ttl{text-decoration:line-through;color:var(--ink3)}
+.ev-chk{all:unset;box-sizing:border-box;cursor:pointer;width:20px;height:20px;border-radius:50%;border:1.8px solid var(--line2);background:var(--surface);display:grid;place-items:center;color:transparent;margin-top:1px;flex:none}
+.ev-chk:hover{border-color:var(--hi);color:var(--hi);background:var(--hi-soft)}
+.ev-chk.on{background:var(--hi);border-color:var(--hi);color:#fff}
+.ev-chk:focus-visible{outline:2px solid var(--accent)}
+.ev-chk:disabled{opacity:.45;cursor:default}
+.ev-body{min-width:0;display:flex;flex-direction:column;gap:4px}
+.ev-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ev-time{font:600 12px var(--f-num);color:var(--ink)}
+.ev-card.late .ev-time{color:var(--lo)}
+.ev-k{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:99px;font-size:11.5px;font-weight:600;background:var(--ebg,var(--sunk));color:var(--ec,var(--ink2))}
+.ev-ed{all:unset;cursor:pointer;margin-left:auto;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--ink3);flex:none}
+.ev-ed:hover{background:var(--sunk);color:var(--ink)}
+.ev-ed:focus-visible{outline:2px solid var(--accent)}
+.ev-ttl{font-weight:600;font-size:13.5px;line-height:1.35;cursor:pointer;overflow-wrap:anywhere}
+.ev-ttl:hover{color:var(--accent)}
+.ev-lead{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--accent);font-weight:500;cursor:pointer;text-decoration:none;max-width:100%;flex-wrap:wrap}
+.ev-lead:hover{text-decoration:underline}
+.ev-lead .sub{color:var(--ink3);font-weight:400;text-decoration:none}
+.ev-note{font-size:12.5px;color:var(--ink2);white-space:pre-line;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.ev-act{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:2px}
+.ev-act .btn.xs{height:24px;padding:0 8px;font-size:11.5px;border-radius:6px;gap:4px}
+.ev-empty{border:1px dashed var(--line2);border-radius:10px;padding:18px 12px;text-align:center;color:var(--ink3);font-size:13px}
+/* week schedule */
+.cal-wk{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cal-wk-sc{overflow-x:auto}
+.cal-wk-in{min-width:780px}
+.wk-row{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr))}
+.wk-hd{background:var(--sunk);border-bottom:1px solid var(--line)}
+.wk-hd>div{padding:8px 6px;border-right:1px solid var(--line);display:flex;align-items:center;gap:5px;min-width:0}
+.wk-hd>div:last-child{border-right:0}
+.wk-hd .corn{justify-content:center;font:11px var(--f-num);color:var(--ink3)}
+.wk-hd .wd{font-size:11.5px;font-weight:600;text-transform:uppercase;color:var(--ink3)}
+.wk-hd .wd.w{color:color-mix(in srgb,var(--lo) 55%,var(--ink3))}
+.wk-hd .wn{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border-radius:99px;font:600 12.5px var(--f-num)}
+.wk-hd .today .wn{background:var(--accent);color:var(--accent-ink)}
+.wk-hd .cal-add{margin-left:auto;opacity:.6}.wk-hd>div:hover .cal-add{opacity:1}
+.wk-all{border-bottom:1.5px solid var(--line);background:color-mix(in srgb,var(--sunk) 45%,var(--surface))}
+.wk-all .tlbl,.wk-hr .tlbl{padding:6px 4px;border-right:1px solid var(--line);font:11px var(--f-num);color:var(--ink3);text-align:center;background:var(--sunk);user-select:none}
+.wk-all-c{padding:5px;border-right:1px solid var(--line);min-height:42px;display:flex;flex-direction:column;gap:3px;min-width:0;cursor:pointer}
+.wk-all-c:last-child{border-right:0}
+.wk-all-c[data-slotdate]:hover{background:color-mix(in srgb,var(--accent-soft) 25%,var(--surface))}
+.cal-wk-body{max-height:calc(100vh - 285px);min-height:360px;overflow-y:auto}
+.wk-hr{border-bottom:1px solid var(--line)}
+.wk-hr:last-child{border-bottom:0}
+.wk-slot{padding:3px 4px;border-right:1px solid var(--line);min-height:46px;display:flex;flex-direction:column;gap:3px;min-width:0;cursor:pointer;position:relative}
+.wk-slot:last-child{border-right:0}
+.wk-slot.wknd{background:color-mix(in srgb,var(--sunk) 45%,var(--surface))}
+.wk-slot.tdcol{background:color-mix(in srgb,var(--accent-soft) 14%,var(--surface))}
+.wk-slot[data-slotdate]:hover{background:color-mix(in srgb,var(--accent-soft) 32%,var(--surface))}
+.wk-slot[data-slotdate]:empty:hover::after{content:"+ " attr(data-time);position:absolute;top:4px;left:6px;font:500 10.5px var(--f-num);color:var(--accent);opacity:.75;pointer-events:none}
+.wk-slot:not([data-slotdate]),.wk-all-c:not([data-slotdate]){cursor:default}
+.wk-ev{border-radius:6px;padding:4px 6px;border-left:3px solid var(--ec,var(--accent));background:var(--ebg,var(--accent-soft));font-size:11.5px;line-height:1.3;display:flex;flex-direction:column;gap:2px;cursor:pointer;min-width:0;position:relative;z-index:1}
+.wk-ev:hover{box-shadow:var(--shadow)}
+.wk-ev.done{opacity:.52;text-decoration:line-through;background:var(--sunk);border-left-color:var(--line2)}
+.wk-ev .wh{display:flex;align-items:center;gap:4px;min-width:0}
+.wk-ev .wt{font:600 10.5px var(--f-num);color:var(--ec,var(--accent));flex:none}
+.wk-ev .wx{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.wk-ev .wl{font-size:11px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wk-ev .wck{all:unset;cursor:pointer;margin-left:auto;width:15px;height:15px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--ec,var(--accent)) 55%,var(--line2));display:grid;place-items:center;flex:none;color:transparent;background:var(--surface)}
+.wk-ev .wck:hover{border-color:var(--hi);color:var(--hi)}
+.wk-ev .wck.on{background:var(--hi);border-color:var(--hi);color:#fff}
+.cal-now{position:absolute;left:0;right:0;height:2px;background:var(--lo);z-index:2;pointer-events:none}
+.cal-now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--lo)}
+.cal-wk-mob{display:none}
+/* event modal */
+.ev-kinds{display:flex;gap:6px;flex-wrap:wrap}
+.ev-kinds button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:9px;font-size:13px;font-weight:500;color:var(--ink2);background:var(--surface);border:1px solid var(--line)}
+.ev-kinds button:hover{border-color:var(--line2)}
+.ev-kinds button:focus-visible{outline:2px solid var(--accent)}
+.ev-kinds button .ico{color:var(--ec)}
+.ev-kinds button.on{background:var(--ebg);border-color:var(--ec);color:var(--ec);font-weight:600}
+.qchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.qchips button{all:unset;cursor:pointer;height:24px;padding:0 8px;border-radius:6px;font-size:11.5px;color:var(--ink2);background:var(--sunk);border:1px solid var(--line)}
+.qchips button:hover{border-color:var(--accent);color:var(--accent)}
+.qchips button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.qchips button:focus-visible{outline:2px solid var(--accent)}
+.lpick{position:relative}
+.lpick-sel{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--sunk);font-size:13px;flex-wrap:wrap}
+.lpick-sel b{font-weight:600}
+.lpick-dd{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:10;background:var(--surface);border:1px solid var(--line2);border-radius:10px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto;padding:4px}
+.lpick-dd button{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;font-size:13px}
+.lpick-dd button:hover,.lpick-dd button:focus-visible{background:var(--accent-soft)}
+.lpick-dd .sub{color:var(--ink3);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.tz-hint{font-size:12px;color:var(--ink2);padding:6px 9px;border-radius:8px;background:var(--sunk);display:flex;align-items:center;gap:6px}
+.tz-hint.warn{background:var(--mid-soft);color:var(--mid);font-weight:500}
+.notif-on{width:7px;height:7px;border-radius:50%;background:var(--hi);flex:none}
 
 /* metrics */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
@@ -215,7 +365,7 @@ td .sub{color:var(--ink3);font-size:12px;max-width:34ch;white-space:nowrap;overf
 .ai .ev li{color:var(--hi)}.ai .as li{color:var(--mid)}
 .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 .fld label{font-size:12px;color:var(--ink3);font-weight:500}
-.fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px}
+.fld input,.fld select,.fld textarea{width:100%;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px}
 .fld textarea{resize:vertical;min-height:80px;line-height:1.5}
 .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
@@ -349,9 +499,35 @@ body.auth .shell,body.auth .top .btn{display:none}
   table.lt td:nth-child(9):empty,table.lt td:nth-child(9):has(.sub:empty){display:none}
   table.lt td:nth-child(10){grid-column:2;justify-self:end;color:var(--ink3);font-size:12.5px}
   table.lt td:nth-child(10):empty{display:none}
-  /* дела */
+  /* дела и календарь */
   .trow{padding:12px}
   .trow .row{flex-wrap:wrap!important}
+  .cal-types{flex-wrap:nowrap;overflow-x:auto;margin-inline:-16px;padding:0 16px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .cal-types::-webkit-scrollbar{display:none}
+  .cal-types>*{flex:none}
+  .kfilt{height:32px;font-size:13px;padding:0 11px}
+  .cal-nav .btn{height:34px;width:34px}.cal-nav .lbl{min-width:132px;font-size:14px}
+  .cal-day{min-height:54px;padding:5px 2px;align-items:center;gap:4px}
+  .cal-dh{justify-content:center;margin:0}
+  .cal-pill,.cal-more,.cal-day .cal-add{display:none}
+  .cal-dots{display:flex;gap:3px;align-items:center;justify-content:center;min-height:7px}
+  .cal-dots i{width:6px;height:6px;border-radius:50%;background:var(--ec,var(--accent));flex:none}
+  .cal-dots span{font:600 9.5px var(--f-num);color:var(--ink3);line-height:1}
+  .cal-side{padding:12px}
+  .cal-quick button{height:32px;padding:0 10px;font-size:13px}
+  .ev-card{padding:11px 12px}
+  .ev-chk{width:24px;height:24px}
+  .ev-ed{width:32px;height:32px}
+  .ev-act .btn.xs{height:30px;padding:0 10px;font-size:12.5px}
+  .cal-wk{display:none}
+  .cal-wk-mob{display:flex;flex-direction:column;gap:10px}
+  .wk-mday{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .wk-mday.today{border-color:var(--accent)}
+  .wk-mhd{display:flex;align-items:center;gap:8px}
+  .wk-mhd b{font-size:14.5px}
+  .wk-mhd .btn{margin-left:auto;height:30px;padding:0 10px;font-size:12.5px}
+  .ev-kinds button{height:36px;font-size:13.5px}
+  .qchips button{height:30px;padding:0 10px;font-size:12.5px}
   /* карточка лида на весь экран, крупные кнопки, без авто-зума на iPhone */
   .drawer{width:100%;box-shadow:none}
   .dh{padding:10px 14px}
@@ -425,11 +601,12 @@ const ICON={
  metrics:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
  settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'};
 
-let sb=null,db=null,sample=null,dl=true,myId=null,canWrite=true,leads=[],cfg={desc:""},loaded=false;
+let sb=null,db=null,sample=null,dl=true,myId=null,canWrite=true,leads=[],calEvents=[],cfg={desc:""},loaded=false;
 let view=lsGet("view")||"queue",q="",openId=null,busy={},banner="",pend={main:false,drawer:false};
 let TEAM=[],scope=lsGet("scope")||"all",tgState=null,dupForce=false,tplEdit=null;
 let qF={src:"",seg:"",reach:"",role:""};
 let F={st:"",src:"",seg:"",tz:"",resp:"",ct:"",own:"",reach:"",role:""},sort={k:"createdAt",d:-1},qSeg="toreview",batch=null,dragId=null,imp=null;
+let calMode=lsGet("calmode")||"month",calCur="",calSel="",calKind="",calDone=false,calDrag=null,evMod=null,calNotif=lsGet("calnotif")==="1",remTimer=null;
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -447,12 +624,18 @@ function toast(t,act){const el=$("#toast");toastAct=act||null;el.innerHTML=esc(t
 async function dbPatch(id,o){const l=L(id);if(l)Object.assign(l,o);const {error}=await sb.rpc("patch_lead",{p_id:id,p_patch:o});if(error)throw error;saveCache()}
 async function dbSet(id,d){const {error}=await sb.from("leads").upsert({id,data:d});if(error)throw error;const i=leads.findIndex(l=>l.id===id);if(i<0)leads.push({id,...d});else leads[i]={id,...d};saveCache()}
 async function dbDel(id){const {error}=await sb.from("leads").delete().eq("id",id);if(error)throw error;leads=leads.filter(l=>l.id!==id);saveCache()}
+const E=id=>calEvents.find(x=>x.id===id);
+const mkEvId=()=>"ev_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+async function evSet(id,d){const clean={...d};delete clean.id;const {error}=await sb.from("config").upsert({id,data:clean});if(error)throw error;const i=calEvents.findIndex(x=>x.id===id);if(i<0)calEvents.push({id,...clean});else calEvents[i]={id,...clean};saveCache()}
+async function evPatch(id,o){const cur=E(id);if(!cur)return;const next={...cur,...o,updatedAt:Date.now(),...(myId?{updatedBy:myId}:{})};await evSet(id,next)}
+async function evDel(id){const {error}=await sb.from("config").delete().eq("id",id);if(error)throw error;calEvents=calEvents.filter(x=>x.id!==id);saveCache()}
+async function loadCalEvents(){try{let out=[],from=0,S=500;for(;;){const {data,error}=await sb.from("config").select("id,data").like("id","ev_%").order("id").range(from,from+S-1);if(error||!data)break;out=out.concat(data.filter(r=>r.data&&!r.data.deleted).map(r=>({id:r.id,...r.data})));if(data.length<S)break;from+=S}calEvents=out;softRender();saveCache()}catch(e){}}
 async function cfgSet(d){const {error}=await sb.from("config").upsert({id:"lan",data:d});if(error)throw error;cfg=d}
 const upd=(id,o)=>dbPatch(id,{...o,updatedAt:Date.now(),...(myId?{updatedBy:myId}:{})});
 function who(id){if(!id)return"";if(id===myId)return"вы";return String(id).split("@")[0]}
 function scoreCls(l){const s=l.ai?.score;return s==null?"na":s>=70?"hi":s>=40?"mid":"lo"}
 function scoreEl(l,big){return`<span class="score ${scoreCls(l)} ${big?"big":""}">${l.ai?l.ai.score:"—"}</span>`}
-const ICO={tg:'<path d="M21.5 4.5 2.8 11.7c-.9.4-.9 1.1 0 1.3l4.6 1.4 1.8 5.4c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.2 4.7 3.5c.8.5 1.4.2 1.6-.8l3-14.3c.3-1.2-.4-1.7-1-1.3z"/><path d="m7.4 14.4 10.4-6.6"/>',wa:'<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3.2 3.2z"/><path d="M9 9.5c.3 2 2.5 4.2 4.5 4.5l1.2-1.2 1.8.8c-.2 1.2-1 1.9-2.2 1.9-3.3 0-6.3-3-6.3-6.3 0-1.2.7-2 1.9-2.2l.8 1.8z"/>',up:'<path d="m6 15 6-6 6 6"/>',down:'<path d="m6 9 6 6 6-6"/>',email:'<path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/>',messenger:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',call:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>'};
+const ICO={tg:'<path d="M21.5 4.5 2.8 11.7c-.9.4-.9 1.1 0 1.3l4.6 1.4 1.8 5.4c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.2 4.7 3.5c.8.5 1.4.2 1.6-.8l3-14.3c.3-1.2-.4-1.7-1-1.3z"/><path d="m7.4 14.4 10.4-6.6"/>',wa:'<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3.2 3.2z"/><path d="M9 9.5c.3 2 2.5 4.2 4.5 4.5l1.2-1.2 1.8.8c-.2 1.2-1 1.9-2.2 1.9-3.3 0-6.3-3-6.3-6.3 0-1.2.7-2 1.9-2.2l.8 1.8z"/>',up:'<path d="m6 15 6-6 6 6"/>',down:'<path d="m6 9 6 6 6-6"/>',chevL:'<path d="m15 18-6-6 6-6"/>',chevR:'<path d="m9 18 6-6-6-6"/>',email:'<path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/>',messenger:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',call:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',meeting:'<rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="m15.5 10.5 6-3.5v10l-6-3.5z"/>',remind:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/>',kp:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',other:'<path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',plus:'<path d="M12 5v14M5 12h14"/>',check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',link:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/>',dl:'<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>'};
 const CH={email:"Почта",messenger:"Мессенджер",call:"Звонок"};
 const RESP={noanswer:"Нет ответа",refused:"Отказ",interest:"Интерес",agreed:"Согласие"};
 const RCOL={noanswer:"var(--ink3)",refused:"var(--lo)",interest:"var(--mid)",agreed:"var(--hi)"};
@@ -537,21 +720,23 @@ async function init(){
   session?start(session):showLogin();
 }
 async function loadTeam(){try{const {data}=await sb.from("members").select("email");TEAM=(data||[]).map(r=>r.email).sort()}catch(e){}
-  const seen=new Set(TEAM.map(e=>e.toLowerCase()));leads.forEach(l=>[l.owner,l.createdBy].forEach(e=>{if(e&&!seen.has(e.toLowerCase())){seen.add(e.toLowerCase());TEAM.push(e)}}));
+  const seen=new Set(TEAM.map(e=>e.toLowerCase()));[...leads,...calEvents].forEach(l=>[l.owner,l.createdBy].forEach(e=>{if(e&&!seen.has(e.toLowerCase())){seen.add(e.toLowerCase());TEAM.push(e)}}));
   if(myId&&!seen.has(myId.toLowerCase()))TEAM.unshift(myId);renderMain();renderDrawer()}
 let cacheT=null;
-function saveCache(){clearTimeout(cacheT);cacheT=setTimeout(()=>{try{if(myId&&loaded)localStorage.setItem("lan_cache_"+myId,JSON.stringify({t:Date.now(),cfg,leads:leads.map(({_confirmDel,...l})=>l)}))}catch(e){/* не влезло в память браузера — убираем старую копию, чтобы не показывать устаревшую базу */try{localStorage.removeItem("lan_cache_"+myId)}catch(_){}}},800)}
+function saveCache(){clearTimeout(cacheT);cacheT=setTimeout(()=>{try{if(myId&&loaded)localStorage.setItem("lan_cache_"+myId,JSON.stringify({t:Date.now(),cfg,cal:calEvents,leads:leads.map(({_confirmDel,...l})=>l)}))}catch(e){/* не влезло в память браузера — убираем старую копию, чтобы не показывать устаревшую базу */try{localStorage.removeItem("lan_cache_"+myId)}catch(_){}}},800)}
 function clearCache(){try{Object.keys(localStorage).filter(k=>k.startsWith("lan_cache_")).forEach(k=>localStorage.removeItem(k))}catch(e){}}
-function showLogin(){db=null;leads=[];loaded=false;document.body.classList.add("auth");$("#login").hidden=false;$("#drawerWrap").hidden=true;setTimeout(()=>$("#l_em")?.focus(),0)}
+function showLogin(){db=null;leads=[];calEvents=[];loaded=false;clearInterval(remTimer);document.body.classList.add("auth");$("#login").hidden=false;$("#drawerWrap").hidden=true;setTimeout(()=>$("#l_em")?.focus(),0)}
 async function start(ses){
   if(db)return;db=sb;myId=ses.user.email;
   document.body.classList.remove("auth");$("#login").hidden=true;render();aiLoad();
   const onRow=p=>{if(p.eventType==="DELETE"||p.new?.data?.archived){leads=leads.filter(l=>l.id!==(p.old?.id||p.new?.id))}else{const r=p.new,i=leads.findIndex(l=>l.id===r.id),v={id:r.id,...r.data};if(i<0)leads.push(v);else{const keep=leads[i]._confirmDel;leads[i]=v;if(keep)v._confirmDel=keep}}softRender();saveCache()};
+  const onCfg=p=>{const cid=p.new?.id||p.old?.id||"";if(cid==="lan"){if(p.new?.data)cfg=p.new.data;if(view==="settings")softRender()}else if(cid.startsWith("ev_")){if(p.eventType==="DELETE"||p.new?.data?.deleted)calEvents=calEvents.filter(x=>x.id!==cid);else if(p.new){const v={id:cid,...p.new.data},i=calEvents.findIndex(x=>x.id===cid);if(i<0)calEvents.push(v);else calEvents[i]=v}softRender();saveCache()}};
   sb.channel("lan").on("postgres_changes",{event:"*",schema:"public",table:"leads"},onRow)
-    .on("postgres_changes",{event:"*",schema:"public",table:"config"},p=>{if(p.new?.id==="lan"){cfg=p.new.data||{desc:""};if(view==="settings")softRender()}}).subscribe();
-  // Копия базы в этом браузере: лиды видны сразу, пока идёт обновление
+    .on("postgres_changes",{event:"*",schema:"public",table:"config"},onCfg).subscribe();
+  // Копия базы в этом браузере: лиды и календарь видны сразу, пока идёт обновление
   const CK="lan_cache_"+myId;let cached=false;
-  try{const c=JSON.parse(localStorage.getItem(CK)||"null");if(c?.leads?.length){leads=c.leads.filter(l=>!l.archived);if(c.cfg)cfg=c.cfg;loaded=true;cached=true;banner="";render()}}catch(e){}
+  try{const c=JSON.parse(localStorage.getItem(CK)||"null");if(c){if(Array.isArray(c.cal))calEvents=c.cal.filter(x=>!x.deleted);if(c.cfg)cfg=c.cfg;if(c.leads?.length||c.cal?.length){leads=(c.leads||[]).filter(l=>!l.archived);loaded=true;cached=true;banner="";render()}}}catch(e){}
+  const calP=loadCalEvents();
   // Загрузка маленькими порциями: крупные ответы от зарубежных серверов у части провайдеров зависают
   // Порции подбираются сами: начинаем со 100, при зависании/ошибке уменьшаем до 8
   let all=[],from=0,done=false,STEP=100;
@@ -569,9 +754,10 @@ async function start(ses){
   clearTimeout(slow);
   if(done){const fresh=all.filter(r=>!r.data?.archived).map(r=>({id:r.id,...r.data})),map=new Map(leads.map(l=>[l.id,l]));
     leads=fresh.map(l=>{const o=map.get(l.id);if(o?._confirmDel)l._confirmDel=1;return l});loaded=true;banner=""}
-  loadTeam();
+  await calP;loadTeam();
   try{const c=await sb.from("config").select("data").eq("id","lan").maybeSingle();if(!c.error)cfg=c.data?.data||{desc:""}}catch(e){}
   render();saveCache();
+  clearInterval(remTimer);setTimeout(checkReminders,3000);remTimer=setInterval(checkReminders,30000);
 }
 
 /* ---------- render ---------- */
@@ -581,13 +767,13 @@ function counts(){
     queue:leads.filter(l=>inScope(l)&&(l.status==="new"||l.status==="scored")).length,
     board:leads.filter(l=>inScope(l)&&ACTIVE.includes(l.status)).length,
     all:leads.filter(inScope).length,
-    tasks:leads.filter(l=>inScope(l)&&ACTIVE.includes(l.status)&&l.nextDate&&l.nextDate<=t).length
+    tasks:calEvents.filter(e=>!e.done&&evInScope(e)&&e.date===t).length
   };
 }
 function renderScope(){document.querySelectorAll("#scopeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.scope===scope))}
 function renderRail(){renderScope();
   const c=counts();
-  const items=[["queue","Проверка",c.queue,"hot"],["board","Воронка",c.board],["all","Все лиды",c.all],["tasks","Дела",c.tasks,"warn"],null,["metrics","Метрики"],["settings","Настройки"]];
+  const items=[["queue","Проверка",c.queue,"hot"],["board","Воронка",c.board],["all","Все лиды",c.all],["tasks","Календарь",c.tasks,"hot"],null,["metrics","Метрики"],["settings","Настройки"]];
   $("#rail").innerHTML=items.map(it=>it?`<button data-view="${it[0]}" class="${view===it[0]?"on":""}"><svg viewBox="0 0 24 24">${ICON[it[0]]}</svg>${it[1]}${it[2]!=null&&loaded?`<span class="cnt ${it[2]&&it[3]?it[3]:""}">${it[2]}</span>`:""}</button>`:"<hr>").join("")
    +`<div class="foot">${myId?esc(myId)+'<br><button class="btn sm ghost" style="padding:0;height:auto;color:var(--ink3);text-decoration:underline" data-act="logout">Выйти</button>':""}</div>`;
 }
@@ -598,7 +784,7 @@ function softRender(){
   renderRail();
 }
 /* Сохранение прокрутки при перерисовке, чтобы страница не «прыгала» */
-const SCROLLERS=".db,.tw,.board,.colb,.src,.mlist,.tlist";
+const SCROLLERS=".db,.tw,.board,.colb,.src,.mlist,.tlist,.cal-side,.cal-wk-body,.cal-wk-sc";
 function keepScroll(root,fn){
   const els=[...root.querySelectorAll(SCROLLERS)].map((e,i)=>[e.className,i,e.scrollTop,e.scrollLeft]);
   const wy=window.scrollY,wx=window.scrollX;
@@ -652,16 +838,16 @@ function vBoard(){
   const t=today();
   const nav=[];
   const cols=BOARD.map(s=>{
-    const items=leads.filter(l=>l.status===s&&match(l)&&bOk(l)).sort((a,b)=>(a.nextDate||"9")<(b.nextDate||"9")?-1:1);
+    const items=leads.filter(l=>l.status===s&&match(l)&&bOk(l)).sort((a,b)=>(leadNext(a)?.date||"9")<(leadNext(b)?.date||"9")?-1:1);
     nav.push(...items.map(l=>l.id));
     const sum=items.reduce((a,l)=>a+(+l.amount||0),0);
     return`<section class="col" id="col-${s}" data-drop="${s}"><div class="colh"><span class="chip" style="color:${SCOL[s]};border:0;background:none;padding:0"><span class="dot"></span></span>${ST[s]} <span class="n">${items.length}</span>${sum?`<span class="sum">${rub(sum)}</span>`:""}</div>
-    <div class="colb">${items.length?items.map(l=>`<article class="kc" draggable="true" data-open="${l.id}" data-drag="${l.id}">
+    <div class="colb">${items.length?items.map(l=>{const nx=leadNext(l);return`<article class="kc" draggable="true" data-open="${l.id}" data-drag="${l.id}">
       <div class="t"><b>${esc(coName(l,"Без названия"))}</b>${scoreEl(l)}</div>
-      ${l.nextStep||l.nextDate?`<div class="ns ${l.nextDate&&l.nextDate<t&&ACTIVE.includes(s)?"late":""}">${l.nextDate?`<span class="num">${fdate(l.nextDate)}</span>`:""}<span>${esc(l.nextStep||"")}</span></div>`:(ACTIVE.includes(s)?'<div class="ns" style="color:var(--ink3)">Нет следующего шага</div>':"")}
+      ${nx||l.nextStep?`<div class="ns ${nx?.date&&nx.date<t&&ACTIVE.includes(s)?"late":""}">${nx?.date?`<span class="num">${fdate(nx.date)}${nx.time?" "+esc(nx.time):""}</span>`:""}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((nx?nx.title:l.nextStep)||"")}</span>${nx?.total>1?`<span class="chip num" style="height:18px;padding:0 5px;font-size:10.5px;margin-left:auto" title="Всего событий в календаре: ${nx.total}">+${nx.total-1}</span>`:""}</div>`:(ACTIVE.includes(s)?'<div class="ns" style="color:var(--ink3)">Нет следующего шага</div>':"")}
       ${l.resp||l.callResult||touchesOf(l).length?`<div class="ft">${callChip(l)}${respChip(l)}${chIcons(l)}${lastTouch(l)?`<span class="num">${fdate(new Date(lastTouch(l).t).toISOString().slice(0,10))}</span>`:""}</div>`:""}
       <div class="ft">${bKind&&bKind!=="srm"?"":kindChip(l)}${ownEl(l)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name||"")}</span>${l.amount?`<span class="money">${rub(l.amount)}</span>`:""}</div>
-    </article>`).join(""):'<div class="empty-col">Перетащите карточку сюда</div>'}</div></section>`}).join("");
+    </article>`}).join(""):'<div class="empty-col">Перетащите карточку сюда</div>'}</div></section>`}).join("");
   navList=nav;
   const inB=leads.filter(l=>BOARD.includes(l.status)&&match(l));
   const kseg=`<div class="filters"><div class="seg">${[["","Все",inB.length],...KIND.map(([k,t])=>[k,t,inB.filter(l=>kindOf(l)===k).length]),["srm","СРМ Жени",inB.filter(l=>l.source===SRM).length]].filter(x=>x[0]===""||x[0]==="srm"||x[2]||bKind===x[0]).map(([k,t,n])=>`<button data-bkind="${k}" class="${bKind===k?"on":""}">${k?`<span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${KCOL[k]||"#c2185b"};margin-right:5px;vertical-align:1px"></span>`:""}${t} <span class="num">${n}</span></button>`).join("")}</div></div>`;
@@ -674,29 +860,427 @@ function vAll(){
   if(!leads.length)return emptyAll();
   let list=leads.filter(l=>match(l)&&(!F.st||l.status===F.st)&&(!F.src||l.source===F.src)&&(!F.seg||l.segment===F.seg)&&(!F.tz||(F.tz==="none"?!l.region:String((utcOf(l.region)??3)-3)===F.tz))
     &&(!F.own||(F.own==="none"?!l.owner:l.owner===F.own))&&(!F.resp||(F.resp==="none"?!l.resp:l.resp===F.resp))&&(!F.ct||(F.ct==="no"?!touchesOf(l).length:F.ct==="any"?touchesOf(l).length:touchesOf(l).some(x=>x.ch===F.ct)))&&reachOk(l,F.reach)&&(!F.role||roleOf(l)===F.role));
-  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>l.nextDate||"9999",touch:l=>lastTouch(l)?.t||0,owner:l=>(l.owner||"~").toLowerCase(),resp:l=>["agreed","interest","noanswer","refused"].indexOf(l.resp)>>>0,amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0,reach:l=>{const r=reach(l);return(r.em?4:0)+(r.ph?2:0)+(r.tg?1:0)}}[sort.k];
+  const key={company:l=>(l.company||"").toLowerCase(),score:l=>l.ai?.score??-1,status:l=>FLOW.indexOf(l.status),nextDate:l=>leadNext(l)?.date||l.nextDate||"9999",touch:l=>lastTouch(l)?.t||0,owner:l=>(l.owner||"~").toLowerCase(),resp:l=>["agreed","interest","noanswer","refused"].indexOf(l.resp)>>>0,amount:l=>+l.amount||0,createdAt:l=>l.createdAt||0,reach:l=>{const r=reach(l);return(r.em?4:0)+(r.ph?2:0)+(r.tg?1:0)}}[sort.k];
   list.sort((a,b)=>{const x=key(a),y=key(b);return(x<y?-1:x>y?1:0)*sort.d});
   navList=list.map(l=>l.id);
   const opt=(arr,v,lbl)=>`<option value="">${lbl}</option>`+arr.map(([k,t])=>`<option value="${esc(k)}" ${v===k?"selected":""}>${esc(t)}</option>`).join("");
   const srcs=[...new Set(leads.map(l=>l.source).filter(Boolean))],segs=[...new Set(leads.map(l=>l.segment).filter(Boolean))];
   const th=(k,t,c="")=>`<th data-sort="${k}" class="${c}">${t}${sort.k===k?(sort.d>0?" ↑":" ↓"):""}</th>`;
   return`<div class="ph"><div><h1>Все лиды</h1><p>${list.length} из ${leads.length}. Сортировка по клику на заголовок.</p></div><div class="act"><button class="btn" data-act="export" ${dl?"":"disabled"}>Выгрузить CSV</button></div></div>
-  ${scopeNote(()=>true)}<div class="filters"><select class="f" id="frole" data-filter="role">${(()=>{const n={};for(const l of leads)if(inScope(l)){const r=roleOf(l);n[r]=(n[r]||0)+1}return opt(ROLES.filter(([k])=>n[k]||F.role===k).map(([k,t])=>[k,t+" · "+(n[k]||0)]),F.role,"Должность: любая")})()}</select><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select><select class="f" id="ftz" data-filter="tz">${opt([["0","МСК"],["-1","МСК−1"],["1","МСК+1"],["2","МСК+2"],["3","МСК+3"],["4","МСК+4"],["5","МСК+5"],["6","МСК+6"],["7","МСК+7"],["8","МСК+8"],["9","МСК+9"],["none","Без региона"]],F.tz,"Часовой пояс: любой")}</select><select class="f" id="fct" data-filter="ct">${opt([["no","Ещё не связывались"],["any","Связывались"],["email","Связывались по почте"],["messenger","В мессенджере"],["call","Звонили"]],F.ct,"Связь: любая")}</select><select class="f" id="fown" data-filter="own">${opt([["none","Без ответственного"],...TEAM.map(e=>[e,e===myId?e+" (вы)":e])],F.own,"Ответственный: все")}</select><select class="f" id="fresp" data-filter="resp">${opt([["none","Без ответа (не отмечен)"],...Object.entries(RESP)],F.resp,"Ответ: любой")}</select><button class="btn sm ${F.reach==="noph"?"pri":""}" data-act="noph" title="Показать лидов без номера телефона">${ico("call",13)} Нет номера <span class="num">${leads.filter(l=>match(l)&&!reach(l).ph).length}</span></button><select class="f" id="freach" data-filter="reach">${opt(REACH,F.reach,"Контакты: любые")}</select>${F.st||F.src||F.seg||F.ct||F.resp||F.own||F.reach?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
+  ${scopeNote(()=>true)}<div class="filters"><select class="f" id="frole" data-filter="role">${(()=>{const n={};for(const l of leads)if(inScope(l)){const r=roleOf(l);n[r]=(n[r]||0)+1}return opt(ROLES.filter(([k])=>n[k]||F.role===k).map(([k,t])=>[k,t+" · "+(n[k]||0)]),F.role,"Должность: любая")})()}</select><select class="f" id="fst" data-filter="st">${opt(Object.entries(ST),F.st,"Все статусы")}</select><select class="f" id="fsrc" data-filter="src">${opt(srcs.map(s=>[s,s]),F.src,"Все источники")}</select><select class="f" id="fseg" data-filter="seg">${opt(segs.map(s=>[s,s]),F.seg,"Все сегменты")}</select><select class="f" id="ftz" data-filter="tz">${opt([["0","МСК"],["-1","МСК−1"],["1","МСК+1"],["2","МСК+2"],["3","МСК+3"],["4","МСК+4"],["5","МСК+5"],["6","МСК+6"],["7","МСК+7"],["8","МСК+8"],["9","МСК+9"],["none","Без региона"]],F.tz,"Часовой пояс: любой")}</select><select class="f" id="fct" data-filter="ct">${opt([["no","Ещё не связывались"],["any","Связывались"],["email","Связывались по почте"],["messenger","В мессенджере"],["call","Звонили"]],F.ct,"Связь: любая")}</select><select class="f" id="fown" data-filter="own">${opt([["none","Без ответственного"],...TEAM.map(e=>[e,e===myId?e+" (вы)":e])],F.own,"Ответственный: все")}</select><select class="f" id="fresp" data-filter="resp">${opt([["none","Без ответа (не отмечен)"],...Object.entries(RESP)],F.resp,"Ответ: любой")}</select><button class="btn sm ${F.reach==="noph"?"pri":""}" data-act="noph" title="Показать лидов без номера телефона">${ico("call",13)} Нет номера <span class="num">${leads.filter(l=>match(l)&&!reach(l).ph).length}</span></button><select class="f" id="freach" data-filter="reach">${opt(REACH,F.reach,"Контакты: любые")}</select>${F.st||F.src||F.seg||F.tz||F.ct||F.resp||F.own||F.reach||F.role?'<button class="btn sm ghost" data-act="clearf">Сбросить</button>':""}</div>
   <div class="tw"><table class="lt"><thead><tr>${th("company","Компания")}${th("reach","Контакты")}${th("score","AI")}${th("status","Статус")}${th("touch","Связь")}${th("resp","Ответ")}${th("owner","Ответств.")}<th>Источник</th><th>Следующий шаг</th>${th("nextDate","Дата")}${th("amount","Сумма","r")}${th("createdAt","Добавлен","r")}</tr></thead><tbody>
-  ${list.map(l=>`<tr data-open="${l.id}"><td><div class="co">${esc(coName(l,"—"))}</div><div class="sub">${esc(l.name||(l.contact||"").split(" · ")[0]||l.segment||"")}${l.region?` · 📍 ${esc(l.city||l.region)}${(utcOf(l.region)??3)!==3?" ("+tzStr(l.region).split(" (")[1]:""}`:""}</div></td><td>${reachBadges(l)}</td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td>${ownEl(l,true)}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc(l.nextStep||"")}</div></td><td class="num">${fdate(l.nextDate)}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`).join("")||'<tr><td colspan="12" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
+  ${list.map(l=>{const nx=leadNext(l);return`<tr data-open="${l.id}"><td><div class="co">${esc(coName(l,"—"))}</div><div class="sub">${esc(l.name||(l.contact||"").split(" · ")[0]||l.segment||"")}${l.region?` · 📍 ${esc(l.city||l.region)}${(utcOf(l.region)??3)!==3?" ("+tzStr(l.region).split(" (")[1]:""}`:""}</div></td><td>${reachBadges(l)}</td><td>${scoreEl(l)}</td><td>${stChip(l.status)}</td><td>${touchesOf(l).length?`<div class="sub2">${chIcons(l)}<span class="num" style="color:var(--ink3);font-size:12px">${ftime(lastTouch(l).t)}</span></div>`:'<span style="color:var(--ink3)">—</span>'}</td><td>${respChip(l)||'<span style="color:var(--ink3)">—</span>'}</td><td>${ownEl(l,true)}</td><td class="nw">${esc(l.source||"")}</td><td><div class="sub" style="color:var(--ink2)">${esc((nx?nx.title:l.nextStep)||"")}</div></td><td class="num nw">${fdate(nx?nx.date:l.nextDate)}${nx?.time?` <span style="color:var(--ink3);font-size:11.5px">${esc(nx.time)}</span>`:""}</td><td class="r num">${l.amount?rub(l.amount):""}</td><td class="r num" style="color:var(--ink3)">${l.createdAt?new Date(l.createdAt).toLocaleDateString("ru-RU"):""}</td></tr>`}).join("")||'<tr><td colspan="12" style="text-align:center;color:var(--ink3);padding:24px">Ничего не найдено</td></tr>'}
   </tbody></table></div>`;
 }
 
-/* Дела */
+/* ---------- Календарь и расписание ---------- */
+const EVK={
+  call:{t:"Созвон",pl:"Созвоны",ico:"call",c:"var(--hi)",bg:"var(--hi-soft)",ph:"Например: созвониться, обсудить формат и бюджет"},
+  write:{t:"Написать",pl:"Написать",ico:"messenger",c:"var(--accent)",bg:"var(--accent-soft)",ph:"Например: написать в Telegram или на почту, напомнить о себе"},
+  meeting:{t:"Встреча",pl:"Встречи",ico:"meeting",c:"var(--meet)",bg:"var(--meet-soft)",ph:"Например: онлайн-встреча, показать платформу и кейсы"},
+  kp:{t:"КП / письмо",pl:"КП",ico:"kp",c:"var(--kp)",bg:"var(--kp-soft)",ph:"Например: отправить КП и смету на 120 участников"},
+  remind:{t:"Напоминание",pl:"Напоминания",ico:"remind",c:"var(--mid)",bg:"var(--mid-soft)",ph:"Например: проверить ответ, вернуться к клиенту"},
+  other:{t:"Дело",pl:"Другое",ico:"other",c:"var(--ink2)",bg:"var(--sunk)",ph:"Например: подготовить презентацию, собрать список компаний"}
+};
+const EV_REP=[["","Без повтора"],["daily","Каждый день"],["workdays","По будням (пн–пт)"],["weekly","Каждую неделю"],["monthly","Каждый месяц"]];
+const MON_N=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const MON_G=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+const MON_S=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+const DOW_S=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+const DOW_F=["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"];
+const plur=(n,a,b,c)=>{const x=Math.abs(n)%100,y=x%10;return x>10&&x<20?c:y===1?a:y>=2&&y<=4?b:c};
+const isoDate=(y,m,d)=>{const x=new Date(y,m,d);return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`};
+const parseIso=s=>{const [y,m,d]=String(s||today()).split("-").map(Number);return new Date(y,(m||1)-1,d||1)};
+const shiftDate=(s,n)=>{const d=parseIso(s);d.setDate(d.getDate()+n);return isoDate(d.getFullYear(),d.getMonth(),d.getDate())};
+function shiftWork(s,n){const d=parseIso(s);let k=Math.max(1,n);while(k>0){d.setDate(d.getDate()+1);if(d.getDay()%6)k--}return isoDate(d.getFullYear(),d.getMonth(),d.getDate())}
+function shiftMonth(s,dm){const d=parseIso(s),t=new Date(d.getFullYear(),d.getMonth()+dm,1),last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();return isoDate(t.getFullYear(),t.getMonth(),Math.min(d.getDate(),last))}
+function mondayOf(s){const d=parseIso(s),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return isoDate(d.getFullYear(),d.getMonth(),d.getDate())}
+function nextMonday(s){const d=parseIso(s||today()),w=(d.getDay()+6)%7;d.setDate(d.getDate()+(7-w));return isoDate(d.getFullYear(),d.getMonth(),d.getDate())}
+function nextRepDate(s,rep){const b=s&&s>=today()?s:today();return rep==="daily"?shiftDate(b,1):rep==="workdays"?shiftWork(b,1):rep==="weekly"?shiftDate(b,7):rep==="monthly"?shiftMonth(b,1):""}
+function fmonthTitle(s){const d=parseIso(s);return`${MON_N[d.getMonth()]} ${d.getFullYear()}`}
+function fweekTitle(s){const a=parseIso(mondayOf(s)),b=parseIso(shiftDate(mondayOf(s),6));
+  if(a.getFullYear()!==b.getFullYear())return`${a.getDate()} ${MON_S[a.getMonth()]} ${a.getFullYear()} – ${b.getDate()} ${MON_S[b.getMonth()]} ${b.getFullYear()}`;
+  if(a.getMonth()!==b.getMonth())return`${a.getDate()} ${MON_S[a.getMonth()]} – ${b.getDate()} ${MON_S[b.getMonth()]} ${b.getFullYear()}`;
+  return`${a.getDate()} – ${b.getDate()} ${MON_G[a.getMonth()]} ${a.getFullYear()}`}
+function fdayFull(s){const d=parseIso(s),cy=new Date().getFullYear();return`${DOW_F[(d.getDay()+6)%7]}, ${d.getDate()} ${MON_G[d.getMonth()]}${d.getFullYear()!==cy?" "+d.getFullYear():""}`}
+function relDay(s){const t=today();return s===t?"Сегодня":s===shiftDate(t,1)?"Завтра":s===shiftDate(t,2)?"Послезавтра":s===shiftDate(t,-1)?"Вчера":""}
+function safeUrl(u){const s=String(u||"").trim();if(!s)return"";if(/^(https?:\/\/|tel:\+?\d|mailto:[^\s@]+@|tg:\/\/)/i.test(s))return s;if(/^[a-z0-9]([a-z0-9-]*\.)+[a-z]{2,}(\/|$)/i.test(s))return"https://"+s;return""}
+function clientTimeAt(l,tm){if(!l?.region||!/^\d{2}:\d{2}$/.test(tm||""))return null;const cu=utcOf(l.region);if(cu==null)return null;
+  const myU=-new Date().getTimezoneOffset()/60,diff=cu-myU;if(!diff)return null;
+  const [h,m]=tm.split(":").map(Number),tot=((h*60+m+Math.round(diff*60))%1440+1440)%1440,ch=Math.floor(tot/60),cm=tot%60;
+  const dMsk=cu-3;return{ct:`${String(ch).padStart(2,"0")}:${String(cm).padStart(2,"0")}`,place:`${l.city||l.region} (МСК${dMsk>0?"+"+dMsk:dMsk<0?"−"+(-dMsk):""})`,warn:ch<9||ch>=19}}
+function evStyle(k){const x=EVK[k]||EVK.other;return`--ec:${x.c};--ebg:${x.bg}`}
+function inferKind(l){if(l.nextKind&&EVK[l.nextKind])return l.nextKind;const s=String(l.nextStep||"");
+  if(l.callResult==="meeting"||/встреч|zoom|зум|meet|телемост|демо|презентац/i.test(s))return"meeting";
+  if(/\bкп\b|коммерческ|смет|договор|сч[её]т/i.test(s))return"kp";
+  if(l.callResult==="callback"||l.callResult==="noanswer"||/позвон|перезвон|созвон|звон|дозвон|набрать/i.test(s))return"call";
+  if(/написат|ответит|письм|почт|telegram|телеграм|\bтг\b|whatsapp|сообщен|рассыл/i.test(s))return"write";
+  return"remind"}
+function leadHasStep(l){if(!l?.nextDate||l.status==="rejected"||l.archived)return false;
+  if(ACTIVE.includes(l.status)||l.status==="new"||l.status==="scored")return true;
+  if(l.status==="lost"&&l.callTask)return true;
+  if(l.status==="won"&&!l.autoStep&&l.nextDate>=today())return true;
+  return false}
+function evInScope(e){return scope==="mine"?e.owner===myId:scope==="none"?!e.owner:true}
+function evMatch(e){if(!evInScope(e))return false;if(!q)return true;const s=q.toLowerCase(),l=e.leadId?L(e.leadId):null,k=EVK[e.kind]||EVK.other;
+  return[e.title,e.note,e.link,e.leadName,k.t,k.pl,...(l?[l.company,l.name,l.phone,l.email,l.tg,l.contact,l.city,l.region]:[])].some(v=>String(v||"").toLowerCase().includes(s))}
+function leadNext(l){const a=[];
+  if(leadHasStep(l))a.push({date:l.nextDate,time:l.nextTime||"",title:l.nextStep||"",kind:inferKind(l)});
+  for(const e of calEvents)if(!e.done&&e.leadId===l.id&&e.date)a.push({date:e.date,time:e.time||"",title:e.title||(EVK[e.kind]||EVK.other).t,kind:e.kind||"other"});
+  if(!a.length)return null;
+  a.sort((x,y)=>x.date!==y.date?(x.date<y.date?-1:1):(x.time||"99:99")<(y.time||"99:99")?-1:1);
+  return{...a[0],total:a.length}}
+function cmpEv(a,b){if(!!a.done!==!!b.done)return a.done?1:-1;if(a.date!==b.date)return a.date<b.date?-1:1;
+  const ta=a.time||"99:99",tb=b.time||"99:99";if(ta!==tb)return ta<tb?-1:1;return String(a.title||"").localeCompare(String(b.title||""),"ru")}
+function allCalItems(opts={}){const out=[],t=today();
+  for(const e of calEvents){if(!e.date)continue;if(e.done){if(!opts.incDone)continue}else if(e.date<t)continue;if(!opts.allScope&&!evMatch(e))continue;
+    const k=EVK[e.kind]?e.kind:"other";if(!opts.ignoreKind&&calKind&&k!==calKind)continue;
+    const l=e.leadId?L(e.leadId):null;
+    out.push({uid:e.id,src:"ev",id:e.id,kind:k,title:e.title||EVK[k].t,date:e.date,time:e.time||"",endTime:e.endTime||"",leadId:e.leadId||"",lead:l,leadName:l?coName(l,"Без названия"):(e.leadName||""),link:e.link||"",note:e.note||"",owner:e.owner||"",done:!!e.done,doneAt:e.doneAt||null,repeat:e.repeat||"",auto:false})}
+  return out.sort(cmpEv)}
+function calScopeNote(){if(scope==="all")return"";const t=today();
+  const n=calEvents.filter(e=>!e.done&&e.date&&e.date>=t&&!evInScope(e)).length;
+  return n?`<div class="warnbox" style="flex-direction:row;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span>Включён фильтр «${scope==="mine"?"Мои":"Без ответственного"}» — скрыто записей в расписании: <b>${n}</b>.</span><button class="btn sm" data-scope="all">Показать все</button></div>`:""}
+
 function vTasks(){
-  if(!leads.length)return emptyAll();
-  const t=today(),wk=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
-  const act=leads.filter(l=>ACTIVE.includes(l.status)&&match(l));
-  const g=[["late","Просрочено",act.filter(l=>l.nextDate&&l.nextDate<t)],["","Сегодня",act.filter(l=>l.nextDate===t)],["","Ближайшие 7 дней",act.filter(l=>l.nextDate>t&&l.nextDate<=wk)],["","Позже",act.filter(l=>l.nextDate>wk)],["","Без даты следующего шага",act.filter(l=>!l.nextDate)]];
-  const row=l=>`<div class="trow" data-open="${l.id}"><span class="d">${l.nextDate?fdate(l.nextDate):"—"}</span><div class="s"><b>${esc(coName(l,"Без названия"))}</b><div>${esc(l.nextStep||"Шаг не записан")}</div></div><div class="row" style="gap:8px;flex-wrap:nowrap">${ownEl(l)}${stChip(l.status)}</div></div>`;
-  navList=g.flatMap(x=>x[2].slice().sort((a,b)=>(a.nextDate||"")<(b.nextDate||"")?-1:1).map(l=>l.id));
-  const body=g.filter(x=>x[2].length).map(([c,h,a])=>`<div class="grp ${c}"><h2>${h} <span class="num">${a.length}</span></h2>${a.sort((x,y)=>(x.nextDate||"")<(y.nextDate||"")?-1:1).map(row).join("")}</div>`).join("");
-  return`<div class="ph"><div><h1>Дела</h1><p>Следующие шаги по лидам в работе. Дату и шаг задают в карточке лида.</p></div></div>`+(body||'<div class="empty"><h3>Нет лидов в работе</h3><p>Одобрите находки в «Проверке» — они появятся здесь.</p></div>');
+  const t=today();if(!calCur)calCur=t;if(!calSel)calSel=t;
+  const allBase=allCalItems({incDone:true,ignoreKind:true});
+  const undoneBase=allBase.filter(x=>!x.done),doneCount=allBase.length-undoneBase.length;
+  const items=allCalItems({incDone:calDone});
+  const tod=items.filter(x=>!x.done&&x.date===t);
+  const w0=mondayOf(t),w1=shiftDate(w0,6),wkCnt=items.filter(x=>!x.done&&x.date>=w0&&x.date<=w1).length;
+  const kCnt={};undoneBase.forEach(x=>kCnt[x.kind]=(kCnt[x.kind]||0)+1);
+  const hasNotif=typeof Notification!=="undefined";
+  const notifOn=hasNotif&&calNotif&&Notification.permission==="granted";
+  const subParts=[];
+  if(tod.length)subParts.push(`сегодня: ${tod.length}`);
+  if(wkCnt)subParts.push(`на этой неделе: ${wkCnt}`);
+  const sub=subParts.length?`В расписании — ${subParts.join(" · ")}. Кликните на день, чтобы внести созвон или напоминание.`:"Созвоны, когда написать, встречи и напоминания. Кликните на любой день или «Добавить».";
+  const navLbl=calMode==="week"?fweekTitle(calCur):fmonthTitle(calCur);
+  const onToday=calMode==="week"?mondayOf(calCur)===mondayOf(t):(calCur.slice(0,7)===t.slice(0,7)&&calSel===t);
+  const addDt=calSel&&calSel>=t?calSel:t;
+  const head=`<div class="ph"><div><h1>Календарь</h1><p>${esc(sub)}</p></div>
+    <div class="act">${hasNotif?`<button class="btn sm" data-act="calnotif" title="Браузерные уведомления за 15 минут до события">${notifOn?'<span class="notif-on"></span>':""}${ico("remind",14)} <span class="dsk">${notifOn?"Уведомления вкл":"Уведомления"}</span></button>`:""}${undoneBase.length?`<button class="btn sm" data-act="calics" title="Скачать расписание файлом .ics для Apple / Google Календаря">${ico("dl",14)} <span class="dsk">.ics</span></button>`:""}${canWrite?`<button class="btn pri" data-act="calnew" data-date="${esc(addDt)}">${ico("plus",15)} Добавить</button>`:""}</div></div>`;
+  const bar=`<div class="cal-bar">
+    <div class="seg" role="tablist" aria-label="Вид расписания">${[["month","Месяц"],["week","Неделя"],["list","Список"]].map(([k,lbl])=>`<button data-calmode="${k}" class="${calMode===k?"on":""}">${lbl}</button>`).join("")}</div>
+    ${calMode!=="list"?`<div class="cal-nav"><button class="btn ghost" data-act="calstep" data-v="-1" aria-label="Назад" title="Назад">${ico("chevL",16)}</button><span class="lbl">${esc(navLbl)}</span><button class="btn ghost" data-act="calstep" data-v="1" aria-label="Вперёд" title="Вперёд">${ico("chevR",16)}</button></div>
+    <button class="btn sm ${onToday?"ghost":""}" data-act="caltoday" ${onToday?"disabled":""}>Сегодня</button>`:""}
+  </div>`;
+  const types=`<div class="cal-types">
+    <button class="kfilt ${!calKind?"on":""}" data-calkind="">Все <span class="num">${undoneBase.length}</span></button>
+    ${Object.entries(EVK).map(([k,v])=>`<button class="kfilt ${calKind===k?"on":""}" style="${evStyle(k)}" data-calkind="${k}">${ico(v.ico,13)} ${v.pl}${kCnt[k]?` <span class="num">${kCnt[k]}</span>`:""}</button>`).join("")}
+    ${doneCount||calDone?`<button class="kfilt ${calDone?"on":""}" style="--ec:var(--hi);--ebg:var(--hi-soft)" data-act="caldone">${ico("check",13)} Выполненные <span class="num">${doneCount}</span></button>`:""}
+  </div>`;
+  const body=calMode==="week"?vCalWeek(items,t):calMode==="list"?vCalList(items,t):vCalMonth(items,t);
+  navList=[...new Set(items.map(x=>x.leadId).filter(id=>id&&L(id)))];
+  return head+calScopeNote()+bar+types+body;
+}
+
+function renderEvCard(it,opts={}){
+  const k=EVK[it.kind]||EVK.other,dis=canWrite?"":"disabled";
+  const l=it.lead,ph=l?tgNum(l.phone):"",tg=l?tgUser(l):"",em=l?String(l.email||"").trim():"",url=safeUrl(it.link);
+  const ctz=l&&it.time?clientTimeAt(l,it.time):null;
+  const tmLbl=opts.showDate?`${fdate(it.date)}${it.time?" · "+it.time+(it.endTime?"–"+it.endTime:""):""}`:(it.time?it.time+(it.endTime?"–"+it.endTime:""):"В течение дня");
+  const acts=[];
+  if(url)acts.push(`<a class="btn xs" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${ico("link",12)} Ссылка</a>`);
+  if(l&&!it.done){
+    if((it.kind==="call"||it.kind==="meeting")&&ph)acts.push(`<a class="btn xs" href="tel:+${ph}" data-act="qtouch" data-id="${l.id}" data-v="call">${ico("call",12)} Позвонить</a>`);
+    if((it.kind==="write"||it.kind==="kp"||!ph)&&(tg||ph))acts.push(`<a class="btn xs" href="${tg?"https://t.me/"+esc(tg):"https://t.me/+"+ph}" target="_blank" rel="noopener noreferrer" data-act="qtouch" data-id="${l.id}" data-v="messenger">${ico("tg",12)} Telegram</a>`);
+    else if(tg)acts.push(`<a class="btn xs" href="https://t.me/${esc(tg)}" target="_blank" rel="noopener noreferrer" data-act="qtouch" data-id="${l.id}" data-v="messenger">${ico("tg",12)} ТГ</a>`);
+    if((it.kind==="write"||it.kind==="kp")&&em)acts.push(`<button class="btn xs" data-act="openl" data-id="${l.id}" title="Открыть письмо в карточке">${ico("email",12)} Почта</button>`);
+  }
+  if(!it.done&&canWrite)acts.push(`<button class="btn xs ghost" data-act="evmove" data-uid="${esc(it.uid)}" data-date="${shiftDate(it.date,1)}" title="Перенести на день позже">+1 дн.</button>`);
+  return`<div class="ev-card ${it.done?"done":""}" style="${evStyle(it.kind)}" ${canWrite&&!it.done?`draggable="true" data-caldrag="${esc(it.uid)}"`:""}>
+    <button class="ev-chk ${it.done?"on":""}" data-act="evdone" data-uid="${esc(it.uid)}" title="${it.done?"Вернуть в работу":"Отметить выполненным"}" aria-label="${it.done?"Вернуть в работу":"Выполнено"}" ${dis}>${ico("check",12)}</button>
+    <div class="ev-body">
+      <div class="ev-top"><span class="ev-time">${esc(tmLbl)}</span><span class="ev-k">${ico(k.ico,11)} ${k.t}</span>${it.repeat?`<span class="chip" style="height:20px;padding:0 6px;font-size:11px" title="Повторяется">${ico("repeat",11)}</span>`:""}<button class="ev-ed" data-act="evopen" data-uid="${esc(it.uid)}" title="Изменить или перенести" aria-label="Изменить">${ico("edit",13)}</button></div>
+      <div class="ev-ttl" data-act="evopen" data-uid="${esc(it.uid)}">${esc(it.title)}</div>
+      ${l?`<a class="ev-lead" data-open="${l.id}">${esc(it.leadName)}${l.name?`<span class="sub">· ${esc(l.name)}</span>`:""}${ctz?`<span class="sub num" ${ctz.warn?'style="color:var(--mid)"':""}>· у них ${ctz.ct}</span>`:""}</a>`:(it.leadName?`<span class="hint">${esc(it.leadName)}</span>`:"")}
+      ${it.note?`<div class="ev-note">${esc(it.note)}</div>`:""}
+      ${acts.length||it.owner?`<div class="ev-act">${acts.join("")}${it.owner?`<span style="margin-left:auto">${ownEl(it)}</span>`:""}</div>`:""}
+    </div>
+  </div>`;
+}
+
+function vCalMonth(items,t){
+  const cur=parseIso(calCur),y=cur.getFullYear(),m=cur.getMonth();
+  const first=isoDate(y,m,1),start=mondayOf(first),last=isoDate(y,m+1,0);
+  const byDay={};items.forEach(it=>(byDay[it.date]=byDay[it.date]||[]).push(it));
+  const cells=[];
+  for(let d=start,i=0;i<42;i++,d=shiftDate(d,1)){
+    if(i>=35&&d>last&&i%7===0)break;
+    const dt=parseIso(d),inM=dt.getMonth()===m,wknd=i%7>=5,past=d<t,arr=byDay[d]||[];
+    const show=arr.slice(0,3),more=arr.length-show.length;
+    const pills=show.map(it=>{const k=EVK[it.kind]||EVK.other;
+      const lbl=it.leadName&&it.src==="lead"?`${it.leadName} — ${it.title}`:(it.leadName?`${it.title} · ${it.leadName}`:it.title);
+      return`<div class="cal-pill ${it.done?"done":""}" style="${evStyle(it.kind)}" ${canWrite&&!it.done?`draggable="true" data-caldrag="${esc(it.uid)}"`:""} data-act="evopen" data-uid="${esc(it.uid)}" title="${esc((it.time?it.time+" ":"")+k.t+": "+it.title+(it.leadName?" ("+it.leadName+")":""))}">${it.time?`<span class="pt">${esc(it.time)}</span>`:ico(k.ico,11)}<span class="px">${esc(lbl)}</span></div>`}).join("");
+    const dots=arr.length?`<div class="cal-dots">${arr.slice(0,4).map(it=>`<i style="--ec:${it.done?"var(--line2)":(EVK[it.kind]||EVK.other).c}"></i>`).join("")}${arr.length>4?`<span>+${arr.length-4}</span>`:""}</div>`:'<div class="cal-dots"></div>';
+    cells.push(`<div class="cal-day ${inM?"":"out"} ${wknd?"wknd":""} ${d===t?"today":""} ${d===calSel?"sel":""}" data-calsel="${d}" ${past?"":`data-caldrop="${d}"`}>
+      <div class="cal-dh"><span class="dn">${dt.getDate()}${dt.getDate()===1&&!inM?" "+MON_S[dt.getMonth()]:""}</span>${canWrite&&!past?`<button class="cal-add" data-act="calnew" data-date="${d}" title="Добавить на ${fdate(d)}" aria-label="Добавить на ${fdate(d)}">${ico("plus",13)}</button>`:""}</div>
+      ${pills}${more>0?`<div class="cal-more">+ ещё ${more}</div>`:""}${dots}
+    </div>`);
+  }
+  const selItems=byDay[calSel]||[],rel=relDay(calSel),pastSel=calSel<t,newDt=pastSel?t:calSel;
+  const quick=canWrite&&!pastSel?`<div class="cal-quick">${["call","write","meeting","kp","remind"].map(k=>`<button style="${evStyle(k)}" data-act="calnew" data-date="${esc(calSel)}" data-kind="${k}">+ ${ico(EVK[k].ico,12)} ${EVK[k].t}</button>`).join("")}</div>`:"";
+  const side=`<aside class="cal-side" aria-label="Расписание на выбранный день">
+    <div class="cal-sh"><div><h2>${esc(fdayFull(calSel))}</h2><div class="sub">${rel?`<span class="chip" style="height:20px;padding:0 7px;font-size:11.5px;${calSel===t?"background:var(--accent-soft);color:var(--accent);border-color:transparent":""}">${rel}</span>`:""}<span>${selItems.length?`${selItems.length} ${plur(selItems.length,"запись","записи","записей")}`:pastSel?"Прошедший день":"Свободный день"}</span></div></div>
+      ${canWrite?`<button class="btn sm pri" data-act="calnew" data-date="${esc(newDt)}">${ico("plus",13)} ${pastSel?"На сегодня":"Добавить"}</button>`:""}</div>
+    ${quick}
+    ${selItems.length?`<div class="ev-list">${selItems.map(it=>renderEvCard(it)).join("")}</div>`:`<div class="ev-empty">${pastSel?`На ${fdate(calSel)} записей нет.`:`На ${fdate(calSel)} пока ничего не запланировано.<br><span class="hint">Выберите тип выше или перетащите сюда дело с другого дня.</span>`}</div>`}
+  </aside>`;
+  return`<div class="cal-layout"><div class="cal-month"><div class="cal-dow">${DOW_S.map((d,i)=>`<span class="${i>=5?"w":""}">${d}</span>`).join("")}</div><div class="cal-grid">${cells.join("")}</div></div>${side}</div>`;
+}
+
+function vCalWeek(items,t){
+  const mon=mondayOf(calCur),days=Array.from({length:7},(_,i)=>shiftDate(mon,i));
+  const wkSet=new Set(days),wkItems=items.filter(x=>wkSet.has(x.date));
+  let minH=8,maxH=20;
+  wkItems.forEach(it=>{if(/^\d{2}:\d{2}$/.test(it.time)){const h=+it.time.slice(0,2);if(h<minH)minH=h;if(h>maxH)maxH=h}});
+  const now=new Date(),nowH=now.getHours(),nowPct=Math.round(now.getMinutes()/60*100);
+  const hd=`<div class="wk-row wk-hd"><div class="corn">${ico("clock",13)}</div>${days.map((d,i)=>{const dt=parseIso(d),past=d<t;
+    return`<div class="${d===t?"today":""}" data-calsel="${d}"><span class="wd ${i>=5?"w":""}">${DOW_S[i]}</span><span class="wn">${dt.getDate()}</span>${canWrite&&!past?`<button class="cal-add" data-act="calnew" data-date="${d}" title="Добавить на ${fdate(d)}" aria-label="Добавить">${ico("plus",13)}</button>`:""}</div>`}).join("")}</div>`;
+  const allRow=`<div class="wk-row wk-all"><div class="tlbl" title="Дела без точного времени">День</div>${days.map(d=>{
+    const arr=wkItems.filter(x=>x.date===d&&!x.time),past=d<t;
+    return`<div class="wk-all-c" ${past?"":`data-caldrop="${d}" data-caltime="" data-slotdate="${d}"`}>${arr.map(it=>{const k=EVK[it.kind]||EVK.other;
+      return`<div class="cal-pill ${it.done?"done":""}" style="${evStyle(it.kind)}" ${canWrite&&!it.done?`draggable="true" data-caldrag="${esc(it.uid)}"`:""} data-act="evopen" data-uid="${esc(it.uid)}" title="${esc(k.t+": "+it.title+(it.leadName?" — "+it.leadName:""))}">${ico(k.ico,11)}<span class="px">${esc(it.leadName&&it.src==="lead"?it.leadName+" — "+it.title:it.title+(it.leadName?" · "+it.leadName:""))}</span></div>`}).join("")}</div>`}).join("")}</div>`;
+  const hrs=[];
+  for(let h=minH;h<=maxH;h++){
+    const hs=String(h).padStart(2,"0")+":00";
+    hrs.push(`<div class="wk-row wk-hr"><div class="tlbl">${hs}</div>${days.map((d,i)=>{
+      const arr=wkItems.filter(x=>x.date===d&&/^\d{2}:\d{2}$/.test(x.time)&&+x.time.slice(0,2)===h),past=d<t;
+      const line=d===t&&nowH===h?`<div class="cal-now" style="top:${nowPct}%"></div>`:"";
+      return`<div class="wk-slot ${i>=5?"wknd":""} ${d===t?"tdcol":""}" ${past?"":`data-caldrop="${d}" data-caltime="${hs}" data-slotdate="${d}"`} data-time="${hs}">${line}${arr.map(it=>{const k=EVK[it.kind]||EVK.other;
+        return`<div class="wk-ev ${it.done?"done":""}" style="${evStyle(it.kind)}" ${canWrite&&!it.done?`draggable="true" data-caldrag="${esc(it.uid)}"`:""} data-act="evopen" data-uid="${esc(it.uid)}">
+          <div class="wh">${ico(k.ico,11)}<span class="wt">${esc(it.time)}${it.endTime?"–"+esc(it.endTime):""}</span>${canWrite?`<button class="wck ${it.done?"on":""}" data-act="evdone" data-uid="${esc(it.uid)}" title="${it.done?"Вернуть":"Выполнено"}">${ico("check",10)}</button>`:""}</div>
+          <div class="wx">${esc(it.title)}</div>${it.leadName?`<div class="wl">${esc(it.leadName)}</div>`:""}
+        </div>`}).join("")}</div>`}).join("")}</div>`);
+  }
+  const mob=`<div class="cal-wk-mob">${days.map((d,i)=>{const dt=parseIso(d),arr=wkItems.filter(x=>x.date===d),rel=relDay(d),past=d<t;
+    return`<div class="wk-mday ${d===t?"today":""}"><div class="wk-mhd"><b>${DOW_F[i]}, ${dt.getDate()} ${MON_G[dt.getMonth()]}</b>${rel?`<span class="chip" style="height:20px;padding:0 7px;font-size:11.5px;${d===t?"background:var(--accent-soft);color:var(--accent);border-color:transparent":""}">${rel}</span>`:""}${canWrite&&!past?`<button class="btn sm" data-act="calnew" data-date="${d}">${ico("plus",13)} Добавить</button>`:""}</div>
+      ${arr.length?`<div class="ev-list">${arr.map(it=>renderEvCard(it)).join("")}</div>`:'<div class="hint">Ничего не запланировано</div>'}</div>`}).join("")}</div>`;
+  return`<div class="cal-wk"><div class="cal-wk-sc"><div class="cal-wk-in">${hd}${allRow}<div class="cal-wk-body">${hrs.join("")}</div></div></div></div>${mob}`;
+}
+
+function vCalList(items,t){
+  const tm=shiftDate(t,1),wk=shiftDate(t,7);
+  const act=items.filter(x=>!x.done),done=allCalItems({incDone:true}).filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)||b.date.localeCompare(a.date));
+  const groups=[
+    ["Сегодня · "+fdate(t),act.filter(x=>x.date===t),false],
+    ["Завтра · "+fdate(tm),act.filter(x=>x.date===tm),false],
+    ["Ближайшие 7 дней",act.filter(x=>x.date>tm&&x.date<=wk),true],
+    ["Позже",act.filter(x=>x.date>wk),true]
+  ];
+  let html=groups.filter(g=>g[1].length).map(([h,arr,sd])=>`<div class="grp"><h2>${esc(h)} <span class="num">${arr.length}</span></h2><div class="ev-list">${arr.map(it=>renderEvCard(it,{showDate:sd})).join("")}</div></div>`).join("");
+  if(done.length)html+=`<details class="grp" ${calDone?"open":""}><summary style="cursor:pointer"><h2 style="display:inline-flex">Выполнено <span class="num">${done.length}</span></h2></summary><div class="ev-list" style="margin-top:8px">${done.slice(0,30).map(it=>renderEvCard(it,{showDate:true})).join("")}</div></details>`;
+  if(!html)html=`<div class="empty"><h3>${q||calKind?"Ничего не найдено":"Расписание пока пустое"}</h3><p>${q||calKind?"Попробуйте сбросить фильтр или изменить запрос.":"Добавьте созвон, встречу, напоминание или когда написать клиенту."}</p>${canWrite?`<button class="btn pri" data-act="calnew" data-date="${t}">${ico("plus",15)} Добавить в календарь</button>`:""}</div>`;
+  return html;
+}
+
+function openEvModal(opts={}){
+  if(!db)return;
+  const t=today();
+  if(opts.uid&&opts.uid.startsWith("lead:")){opts={...opts,leadStepId:opts.uid.slice(5)}}
+  else if(opts.uid){opts={...opts,id:opts.uid}}
+  if(opts.leadStepId){
+    const l=L(opts.leadStepId);if(!l)return;
+    evMod={mode:"lead",leadId:l.id,kind:inferKind(l),title:l.nextStep||"",date:l.nextDate||t,time:l.nextTime||""};
+  }else if(opts.id){
+    const e=E(opts.id);if(!e)return;
+    evMod={mode:"edit",id:e.id,kind:EVK[e.kind]?e.kind:"other",title:e.title||"",date:e.date||t,time:e.time||"",endTime:e.endTime||"",leadId:e.leadId||"",leadName:e.leadName||"",link:e.link||"",note:e.note||"",repeat:e.repeat||"",owner:e.owner??"",done:!!e.done,lq:""};
+  }else{
+    const l=opts.leadId?L(opts.leadId):null,defD=calSel&&calSel>=t?calSel:t;
+    evMod={mode:"new",kind:EVK[opts.kind]?opts.kind:"call",title:opts.title||"",date:opts.date||defD,time:opts.time||"",endTime:"",leadId:l?l.id:"",leadName:l?coName(l,""):"",link:"",note:"",repeat:"",owner:myId||"",done:false,lq:""};
+  }
+  renderEvModal(true);
+}
+function syncEvForm(){
+  if(!evMod||!$("#evf"))return;
+  if($("#ev_title"))evMod.title=$("#ev_title").value;
+  if($("#ev_date"))evMod.date=$("#ev_date").value;
+  if($("#ev_time"))evMod.time=$("#ev_time").value;
+  if($("#ev_end"))evMod.endTime=$("#ev_end").value;
+  if($("#ev_link"))evMod.link=$("#ev_link").value;
+  if($("#ev_note"))evMod.note=$("#ev_note").value;
+  if($("#ev_rep"))evMod.repeat=$("#ev_rep").value;
+  if($("#ev_own"))evMod.owner=$("#ev_own").value;
+}
+function renderLeadDd(qStr){
+  const s=String(qStr||"").trim().toLowerCase();
+  const pool=leads.filter(l=>l.status!=="rejected"&&!l.archived);
+  const hits=(s?pool.filter(l=>[l.company,l.name,l.phone,l.email,l.tg,l.contact,l.city,...(l.contacts||[]).flatMap(c=>[c.name,c.email,c.phone,c.tg])].some(v=>String(v||"").toLowerCase().includes(s))):pool.slice().sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0))).slice(0,8);
+  if(!hits.length)return s?'<div class="hint" style="padding:8px">Лид не найден — запись сохранится без привязки</div>':"";
+  return hits.map(l=>`<button type="button" data-act="evpickl" data-id="${l.id}">${reachEl(l)}<b style="white-space:nowrap">${esc(coName(l,"Без названия"))}</b><span class="sub">${esc([l.name,l.city||l.region].filter(Boolean).join(" · "))}</span>${stChip(l.status)}</button>`).join("");
+}
+function updEvTz(){
+  const box=$("#ev_tz");if(!box||!evMod)return;
+  const l=evMod.leadId?L(evMod.leadId):null,tm=$("#ev_time")?.value||"";
+  const info=l&&tm?clientTimeAt(l,tm):null;
+  if(!info){box.hidden=true;box.innerHTML="";return}
+  box.hidden=false;box.className="tz-hint"+(info.warn?" warn":"");
+  box.innerHTML=`${ico("clock",14)}<span>У клиента в ${esc(info.place)} будет <b class="num">${info.ct}</b>${info.warn?" — нерабочее время":""}</span>`;
+}
+function renderEvModal(focusTitle){
+  if(!evMod)return;
+  const m=evMod,t=today(),isLead=m.mode==="lead",k=EVK[m.kind]||EVK.call,dis=canWrite?"":"disabled";
+  const l=m.leadId?L(m.leadId):null;
+  const dPresets=[["Сегодня",t],["Завтра",shiftDate(t,1)],["+2 раб. дня",shiftWork(t,2)],["След. пн",nextMonday(t)],["+1 нед.",shiftDate(t,7)],["+1 мес.",shiftMonth(t,1)]];
+  const tPresets=["09:00","10:00","12:00","14:00","16:00","18:00"];
+  $("#modal").hidden=false;
+  $("#modal").innerHTML=`<form class="mbox" id="evf">
+    <div class="row" style="justify-content:space-between"><h2>${m.mode==="new"?"Новое событие":isLead?"Следующий шаг по лиду":"Редактировать событие"}</h2><button type="button" class="btn sm ghost" data-act="mclose" aria-label="Закрыть">✕</button></div>
+    <div class="ev-kinds" role="radiogroup" aria-label="Тип события">${Object.entries(EVK).map(([ek,ev])=>`<button type="button" style="${evStyle(ek)}" class="${m.kind===ek?"on":""}" data-act="evkind" data-v="${ek}" aria-pressed="${m.kind===ek}" ${dis}>${ico(ev.ico,14)} ${ev.t}</button>`).join("")}</div>
+    <div class="fld"><label for="ev_title">Что сделать</label><input id="ev_title" value="${esc(m.title)}" placeholder="${esc(k.ph)}" ${dis}></div>
+    <div class="grid2">
+      <div class="fld"><label for="ev_date">Дата</label><input id="ev_date" type="date" value="${esc(m.date)}" required ${dis}></div>
+      <div class="fld"><label for="ev_time">Время <span class="hint">(необязательно)</span></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="ev_time" type="time" value="${esc(m.time)}" ${dis}>${!isLead?`<span class="hint">–</span><input id="ev_end" type="time" value="${esc(m.endTime||"")}" aria-label="Время окончания" title="Время окончания (необязательно)" ${dis}>`:""}</div></div>
+    </div>
+    <div class="qchips">${dPresets.map(([lbl,dv])=>`<button type="button" class="${m.date===dv?"on":""}" data-act="evqdate" data-v="${dv}" ${dis}>${lbl}</button>`).join("")}</div>
+    <div class="qchips">${tPresets.map(tv=>`<button type="button" class="${m.time===tv?"on":""}" data-act="evqtime" data-v="${tv}" ${dis}>${tv}</button>`).join("")}${m.time?`<button type="button" data-act="evqtime" data-v="" ${dis}>Без времени</button>`:""}</div>
+    <div id="ev_tz" hidden></div>
+    ${isLead?`<div class="lpick-sel"><span>Лид:</span><b>${esc(l?coName(l,"Без названия"):"—")}</b>${l?geoChip(l):""}<span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="btn sm" data-act="evopenlead" data-id="${m.leadId}">Открыть карточку</button>${canWrite?`<button type="button" class="btn sm ghost" data-act="evaddmore" data-id="${m.leadId}" title="Добавить отдельное событие в календарь по этому лиду">+ Ещё событие</button>`:""}</span></div>`
+    :`<div class="fld"><label for="ev_lq">Лид / компания <span class="hint">(необязательно — можно оставить пустым для личного напоминания)</span></label>
+      ${l||m.leadName?`<div class="lpick-sel">${l?reachEl(l):""}<b>${esc(l?coName(l,"Без названия"):m.leadName)}</b>${l?.name?`<span class="hint">${esc(l.name)}</span>`:""}${l?geoChip(l):""}<span style="margin-left:auto;display:flex;gap:6px">${l?`<button type="button" class="btn sm ghost" data-act="evopenlead" data-id="${l.id}">Карточка</button>`:""}${canWrite?`<button type="button" class="btn sm ghost" data-act="evclearl">✕ Убрать</button>`:""}</span></div>`
+      :`<div class="lpick"><input id="ev_lq" value="${esc(m.lq||"")}" placeholder="Поиск лида по компании, имени, телефону, @нику…" autocomplete="off" ${dis}><div class="lpick-dd" id="ev_dd" hidden></div></div>`}
+    </div>
+    <div class="grid2">
+      <div class="fld"><label for="ev_rep">Повтор</label><select id="ev_rep" ${dis}>${EV_REP.map(([rv,rt])=>`<option value="${rv}" ${m.repeat===rv?"selected":""}>${rt}</option>`).join("")}</select></div>
+      <div class="fld"><label for="ev_own">Ответственный</label><select id="ev_own" ${dis}><option value="" ${!m.owner?"selected":""}>— без ответственного —</option>${TEAM.map(e=>`<option value="${esc(e)}" ${m.owner===e?"selected":""}>${esc(e===myId?e+" (вы)":e)}</option>`).join("")}${m.owner&&!TEAM.includes(m.owner)?`<option value="${esc(m.owner)}" selected>${esc(m.owner)}</option>`:""}</select></div>
+    </div>
+    <div class="fld"><label for="ev_link">Ссылка на созвон / чат <span class="hint">(Zoom, Meet, Телемост, Telegram — необязательно)</span></label><input id="ev_link" value="${esc(m.link||"")}" placeholder="https://…" ${dis}></div>
+    <div class="fld"><label for="ev_note">Заметка <span class="hint">(что обсудить, о чём написать, номер телефона)</span></label><textarea id="ev_note" style="min-height:66px" placeholder="Подробности…" ${dis}>${esc(m.note||"")}</textarea></div>`}
+    <div class="err" id="ev_err"></div>
+    <div class="foot">
+      ${m.mode==="edit"&&canWrite?`<button type="button" class="btn ghost" style="color:var(--lo);margin-right:auto" data-act="evdel" data-id="${esc(m.id)}">Удалить</button>`:""}
+      ${m.mode!=="new"?`<button type="button" class="btn sm ghost" data-act="evics1" title="Добавить в Apple / Google Календарь">${ico("dl",13)} .ics</button>`:""}
+      ${m.mode==="edit"&&canWrite?`<button type="button" class="btn ${m.done?"":"ok"}" data-act="evdone" data-uid="${esc(m.id)}" data-close="1">${m.done?"Вернуть в работу":"✓ Сделано"}</button>`:""}
+      ${isLead&&canWrite?`<button type="button" class="btn ok" data-act="evdone" data-uid="lead:${esc(m.leadId)}" data-close="1">✓ Сделано</button>`:""}
+      <button type="button" class="btn ghost" data-act="mclose">Отмена</button>
+      ${canWrite?`<button type="submit" class="btn pri">${m.mode==="new"?"Добавить":"Сохранить"}</button>`:""}
+    </div>
+  </form>`;
+  updEvTz();
+  if(focusTitle)setTimeout(()=>$("#ev_title")?.focus(),0);
+}
+async function saveEvModal(){
+  if(!evMod||!canWrite)return;
+  syncEvForm();
+  const m=evMod,k=EVK[m.kind]?m.kind:"other",date=(m.date||"").trim(),time=(m.time||"").trim(),endTime=(m.endTime||"").trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){$("#ev_err").textContent="Укажите дату.";return}
+  if(endTime&&time&&endTime<time){$("#ev_err").textContent="Время окончания раньше начала.";return}
+  const link=(m.link||"").trim();
+  if(link&&!safeUrl(link)){$("#ev_err").textContent="Проверьте ссылку (начинается с https:// или домена).";return}
+  const title=(m.title||"").trim()||EVK[k].t,past=date<today();
+  if(m.mode==="lead"){
+    await upd(m.leadId,{nextStep:title,nextDate:date,nextTime:time,nextKind:k,autoStep:false});
+    if(!past){calSel=date;if(view==="tasks")calCur=date}
+    closeModal();render();toast(`Сохранено на ${fdate(date)}${time?" "+time:""}${past?" (прошедшие даты скрыты в календаре)":""}`);return;
+  }
+  const now=Date.now(),l=m.leadId?L(m.leadId):null,old=m.mode==="edit"?E(m.id):null;
+  const id=m.mode==="edit"?m.id:mkEvId();
+  const doc={kind:k,title,date,time,endTime:time?endTime:"",leadId:m.leadId||"",leadName:l?coName(l,""):(m.leadName||""),link:link?safeUrl(link):"",note:(m.note||"").trim(),repeat:m.repeat||"",owner:m.owner||"",done:!!m.done,doneAt:old?.doneAt||null,createdAt:old?.createdAt||now,createdBy:old?.createdBy||myId||"",updatedAt:now,updatedBy:myId||""};
+  await evSet(id,doc);
+  if(!past||m.done){calSel=date;if(view==="tasks")calCur=date}
+  closeModal();render();
+  toast(`${m.mode==="new"?"Добавлено":"Сохранено"}: ${EVK[k].t.toLowerCase()} · ${fdate(date)}${time?" "+time:""}${past&&!m.done?" (прошедшие даты скрыты в календаре)":""}`);
+}
+async function toggleEvDone(uid){
+  if(!canWrite)return;
+  if(uid.startsWith("lead:")){
+    const id=uid.slice(5),l=L(id);if(!l)return;
+    const snap={nextStep:l.nextStep||"",nextDate:l.nextDate||"",nextTime:l.nextTime||"",nextKind:l.nextKind||"",callTask:!!l.callTask,autoStep:!!l.autoStep,kpFollow:l.kpFollow||""};
+    if(l.callTask&&l.callResult==="interest"&&l.kpFollow&&/^Отправить КП/.test(l.nextStep||"")){await callDone(id);return}
+    await upd(id,{nextStep:"",nextDate:"",nextTime:"",nextKind:"",callTask:false,autoStep:false});
+    render();toast(`Выполнено: ${snap.nextStep||coName(l,"лид")}`,{label:"Отменить",fn:async()=>{await upd(id,snap);render()}});
+    return;
+  }
+  const e=E(uid);if(!e)return;
+  const prev={...e};
+  if(!e.done&&e.repeat){
+    const nx=nextRepDate(e.date,e.repeat);
+    await evPatch(uid,{date:nx,lastDoneAt:Date.now()});render();
+    toast(`Выполнено · следующий повтор ${fdate(nx)}`,{label:"Отменить",fn:async()=>{await evSet(uid,prev);render()}});
+    return;
+  }
+  const done=!e.done;
+  await evPatch(uid,{done,doneAt:done?Date.now():null});render();
+  toast(done?`Выполнено: ${e.title}`:`Возвращено в работу: ${e.title}`,{label:"Отменить",fn:async()=>{await evSet(uid,prev);render()}});
+}
+async function moveEv(uid,date,time){
+  if(!canWrite||!/^\d{4}-\d{2}-\d{2}$/.test(date||""))return;
+  if(uid.startsWith("lead:")){
+    const id=uid.slice(5),l=L(id);if(!l)return;
+    const prev={nextDate:l.nextDate||"",nextTime:l.nextTime||"",autoStep:!!l.autoStep};
+    const nt=time===undefined?(l.nextTime||""):time;
+    if(prev.nextDate===date&&prev.nextTime===nt)return;
+    await upd(id,{nextDate:date,nextTime:nt,autoStep:false});render();
+    toast(`Перенесено на ${fdate(date)}${nt?" "+nt:""}`,{label:"Отменить",fn:async()=>{await upd(id,prev);render()}});
+    return;
+  }
+  const e=E(uid);if(!e)return;
+  const prev={...e},nt=time===undefined?(e.time||""):time;
+  let ne=e.endTime||"";
+  if(time!==undefined){if(!nt)ne="";else if(e.time&&e.endTime){const dur=(+e.endTime.slice(0,2)*60+ +e.endTime.slice(3))-(+e.time.slice(0,2)*60+ +e.time.slice(3));if(dur>0){const s=+nt.slice(0,2)*60+ +nt.slice(3)+dur;if(s<1440)ne=`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;else ne=""}}}
+  if(e.date===date&&(e.time||"")===nt)return;
+  await evPatch(uid,{date,time:nt,endTime:ne});render();
+  toast(`Перенесено на ${fdate(date)}${nt?" "+nt:""}`,{label:"Отменить",fn:async()=>{await evSet(uid,prev);render()}});
+}
+async function delEv(id){
+  const e=E(id);if(!e||!canWrite)return;const snap={...e};
+  await evDel(id);closeModal();render();
+  toast(`Удалено: ${snap.title}`,{label:"Вернуть",fn:async()=>{await evSet(id,snap);render()}});
+}
+function icsEsc(s){return String(s||"").replace(/\\/g,"\\\\").replace(/\r?\n/g,"\\n").replace(/[,;]/g,c=>"\\"+c)}
+function dlIcs(list,fname){
+  if(!list.length){toast("Нет событий для экспорта");return}
+  const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  const rrule={daily:"FREQ=DAILY",workdays:"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",weekly:"FREQ=WEEKLY",monthly:"FREQ=MONTHLY"};
+  const vev=list.map(it=>{
+    const d0=it.date.replace(/-/g,""),k=EVK[it.kind]||EVK.other;
+    let dtS,dtE,al;
+    if(/^\d{2}:\d{2}$/.test(it.time)){
+      dtS=`DTSTART:${d0}T${it.time.replace(":","")}00`;
+      if(/^\d{2}:\d{2}$/.test(it.endTime)&&it.endTime>it.time)dtE=`DTEND:${d0}T${it.endTime.replace(":","")}00`;
+      else{const [h,m]=it.time.split(":").map(Number),tot=h*60+m+30,ed=tot>=1440?shiftDate(it.date,1).replace(/-/g,""):d0,em=tot%1440;dtE=`DTEND:${ed}T${String(Math.floor(em/60)).padStart(2,"0")}${String(em%60).padStart(2,"0")}00`}
+      al="TRIGGER:-PT15M";
+    }else{dtS=`DTSTART;VALUE=DATE:${d0}`;dtE=`DTEND;VALUE=DATE:${shiftDate(it.date,1).replace(/-/g,"")}`;al="TRIGGER:PT9H"}
+    const l=it.lead,desc=[it.note,l?.name&&"Контакт: "+l.name,l?.phone&&"Тел.: "+l.phone,l?.email&&"Email: "+l.email,l&&tgUser(l)&&"Telegram: @"+tgUser(l)].filter(Boolean).join("\n");
+    const sum=`${k.t}: ${it.title}${it.leadName?" — "+it.leadName:""}`;
+    return["BEGIN:VEVENT",`UID:${it.uid.replace(/[^a-zA-Z0-9_-]/g,"-")}@projectlan-crm`,`DTSTAMP:${stamp}`,dtS,dtE,
+      ...(it.repeat&&rrule[it.repeat]?[`RRULE:${rrule[it.repeat]}`]:[]),
+      `SUMMARY:${icsEsc(sum)}`,...(desc?[`DESCRIPTION:${icsEsc(desc)}`]:[]),...(safeUrl(it.link)?[`URL:${safeUrl(it.link)}`]:[]),
+      "BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsEsc(sum)}`,al,"END:VALARM","END:VEVENT"].join("\r\n");
+  });
+  const txt=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Project LAN CRM//Calendar//RU","CALSCALE:GREGORIAN","X-WR-CALNAME:Project LAN CRM",...vev,"END:VCALENDAR"].join("\r\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"text/calendar;charset=utf-8"}));a.download=fname||`project-lan-calendar-${today()}.ics`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+  toast("Файл календаря (.ics) скачан");
+}
+async function toggleCalNotif(){
+  if(typeof Notification==="undefined"){toast("Браузер не поддерживает уведомления");return}
+  if(calNotif&&Notification.permission==="granted"){calNotif=false;lsSet("calnotif","0");renderMain();toast("Уведомления выключены");return}
+  let p=Notification.permission;
+  if(p==="default"){try{p=await Notification.requestPermission()}catch(_){}}
+  if(p!=="granted"){toast("Разрешите уведомления для этого сайта в настройках браузера");return}
+  calNotif=true;lsSet("calnotif","1");renderMain();toast("Уведомления включены — напомним за 15 мин и в момент события");
+}
+function checkReminders(){
+  if(!loaded||!myId)return;
+  const t=today(),now=new Date(),curM=now.getHours()*60+now.getMinutes();
+  let seen=[];try{seen=JSON.parse(lsGet("remseen")||"[]")}catch(_){}
+  const set=new Set(seen);let changed=false;
+  const mine=allCalItems({allScope:true,ignoreKind:true}).filter(it=>!it.done&&it.date===t&&/^\d{2}:\d{2}$/.test(it.time)&&(!it.owner||it.owner===myId));
+  for(const it of mine){
+    const [h,m]=it.time.split(":").map(Number),diff=(h*60+m)-curM;
+    const stage=diff<=0&&diff>=-5?"now":diff>0&&diff<=15?"soon":"";
+    if(!stage)continue;
+    const key=`${it.uid}@${it.date}@${it.time}@${stage}`;
+    if(set.has(key))continue;
+    set.add(key);seen.push(key);changed=true;
+    const k=EVK[it.kind]||EVK.other,hd=stage==="now"?`Сейчас (${it.time}) · ${k.t}`:`Через ${diff} мин (${it.time}) · ${k.t}`;
+    const body=it.title+(it.leadName?" — "+it.leadName:"");
+    toast(`${hd}: ${body}`,{label:"Открыть",fn:()=>it.lead?openLead(it.lead.id):openEvModal({uid:it.uid})});
+    if(calNotif&&typeof Notification!=="undefined"&&Notification.permission==="granted"){try{const n=new Notification(hd,{body,tag:key});n.onclick=()=>{window.focus();it.lead?openLead(it.lead.id):openEvModal({uid:it.uid});n.close()}}catch(_){}}
+  }
+  if(changed)lsSet("remseen",JSON.stringify(seen.slice(-80)));
 }
 
 /* Метрики */
@@ -713,7 +1297,7 @@ function vMetrics(){
   return`<div class="ph"><div><h1>Метрики</h1><p>Всё считается по реальным данным базы. На малых выборках проценты нестабильны — смотрите на абсолютные числа.</p></div></div>
   <div class="kpis">
    <div class="kpi"><div class="l">Лидов в базе</div><div class="v">${leads.length}</div><div class="s">${counts().queue} ждут проверки</div></div>
-   <div class="kpi"><div class="l">В работе</div><div class="v">${leads.filter(l=>ACTIVE.includes(l.status)).length}</div><div class="s">${counts().tasks} дел на сегодня и просрочено</div></div>
+   <div class="kpi"><div class="l">В работе</div><div class="v">${leads.filter(l=>ACTIVE.includes(l.status)).length}</div><div class="s">${counts().tasks} ${plur(counts().tasks,"дело","дела","дел")} на сегодня</div></div>
    <div class="kpi"><div class="l">Ответили на письмо</div><div class="v">${pct(rep,sent)}</div><div class="s">${rep} из ${sent} отправленных</div></div>
    <div class="kpi"><div class="l">Сумма сделок</div><div class="v">${rub(sum("amount"))}</div><div class="s">введено вручную</div></div>
    <div class="kpi"><div class="l">Вознаграждение</div><div class="v">${rub(sum("commOk"))}</div><div class="s">подтверждено · ожидается ${rub(sum("commExp"))}</div></div>
@@ -789,7 +1373,7 @@ function vSettings(){
   <div style="height:14px"></div>
   ${tgPanel()}
   <div class="panel"><h3>Мой пароль</h3><div class="row"><div class="fld" style="flex:1;min-width:200px"><input id="c_pw" type="password" autocomplete="new-password" placeholder="Новый пароль, минимум 8 символов"></div><button class="btn" data-act="pw">Сменить</button></div></div>
-  <div class="panel"><h3>Горячие клавиши</h3><div class="hint" style="line-height:1.9"><span class="num">/</span> — поиск · <span class="num">N</span> — новый лид · <span class="num">Esc</span> — закрыть карточку · <span class="num">↑ ↓</span> или <span class="num">J K</span> — предыдущий / следующий лид в открытой карточке</div>
+  <div class="panel"><h3>Горячие клавиши</h3><div class="hint" style="line-height:1.9"><span class="num">/</span> — поиск · <span class="num">N</span> — новый лид · <span class="num">C</span> — добавить в календарь · <span class="num">Esc</span> — закрыть окно/карточку · <span class="num">↑ ↓</span> или <span class="num">J K</span> — предыдущий / следующий лид · в календаре: <span class="num">← →</span> листать период, <span class="num">T</span> сегодня, <span class="num">1 2 3</span> месяц / неделя / список</div>
   <p class="hint" style="margin-top:10px">Каждый контакт с лидом отмечайте в карточке — почта, мессенджер или звонок — и ставьте ответ. Так метрики покажут, какой канал работает. Храните только компанию и роль из публичных источников, без лишних персональных данных.</p></div>`;
 }
 
@@ -829,7 +1413,7 @@ function renderDrawer(){
     ${aiSection(l,dis)}
     ${msgSection(l,dis)}
     ${quoteSection(l,dis)}
-    <div class="sec"><h4>Следующий шаг ${l.autoStep?'<span class="chip" style="text-transform:none;letter-spacing:0">поставлен автоматически</span>':""}</h4><div class="grid2"><div class="fld" style="grid-column:span 2"><label for="d_ns">Что сделать</label><input id="d_ns" data-f="nextStep" value="${esc(l.nextStep)}" placeholder="Например: позвонить, уточнить дату корпоратива" ${dis}></div><div class="fld"><label for="d_nd">Когда</label><input id="d_nd" type="date" data-f="nextDate" value="${esc(l.nextDate)}" ${dis}></div></div></div>
+    ${leadSchedSection(l,dis)}
     <div class="sec"><h4>Контактное лицо</h4><div class="grid2">
       <div class="fld" style="grid-column:1/-1"><label for="d_nm">ФИО</label><input id="d_nm" data-f="name" value="${esc(l.name)}" placeholder="Фамилия Имя Отчество" ${dis}></div>
       <div class="fld"><label for="d_ph">Телефон</label><div class="cpy"><input id="d_ph" type="tel" data-f="phone" value="${esc(l.phone)}" ${dis}><button class="btn sm" data-act="copyf" data-for="d_ph" title="Копировать">⧉</button></div></div>
@@ -887,30 +1471,50 @@ const CRCOL={noanswer:"var(--ink3)",callback:"var(--mid)",interest:"var(--accent
 function addDays(n){const d=new Date();d.setDate(d.getDate()+n);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function callChip(l){return l.callResult&&!["won","lost"].includes(l.status)||l.callResult==="refused"?`<span class="chip" style="color:${CRCOL[l.callResult]}"><span class="dot"></span><span style="color:var(--ink2)">${ico("call")} ${CRES[l.callResult]}${l.callResult==="noanswer"&&(l.callTries||0)>1?" ×"+l.callTries:""}</span></span>`:""}
 function callDue(l){if(!l.callResult||["won","lost","rejected"].includes(l.status)||!l.nextDate||!l.callTask)return 0;const t=today();if(l.callResult==="meeting"){return l.nextDate<=addDays(1)?1:0}return l.nextDate<=t?1:0}
+function leadSchedSection(l,dis){
+  const t=today(),evs=calEvents.filter(e=>e.leadId===l.id&&!e.done).sort(cmpEv),doneEvs=calEvents.filter(e=>e.leadId===l.id&&e.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
+  const evHtml=evs.length?`<div class="ev-list" style="margin-bottom:10px">${evs.map(e=>{const k=EVK[e.kind]||EVK.other,late=e.date&&e.date<t;
+    return`<div class="ev-card ${late?"late":""}" style="${evStyle(e.kind)}">
+      <button class="ev-chk" data-act="evdone" data-uid="${esc(e.id)}" title="Выполнено" aria-label="Выполнено" ${dis}>${ico("check",12)}</button>
+      <div class="ev-body"><div class="ev-top"><span class="ev-time">${esc(fdate(e.date))}${e.time?" · "+esc(e.time)+(e.endTime?"–"+esc(e.endTime):""):""}</span><span class="ev-k">${ico(k.ico,11)} ${k.t}</span>${e.repeat?`<span class="chip" style="height:20px;padding:0 6px;font-size:11px" title="Повторяется">${ico("repeat",11)}</span>`:""}<button class="ev-ed" data-act="evopen" data-uid="${esc(e.id)}" title="Изменить">${ico("edit",13)}</button></div>
+      <div class="ev-ttl" data-act="evopen" data-uid="${esc(e.id)}">${esc(e.title||k.t)}</div>${e.note?`<div class="ev-note">${esc(e.note)}</div>`:""}${safeUrl(e.link)?`<div class="ev-act"><a class="btn xs" href="${esc(safeUrl(e.link))}" target="_blank" rel="noopener noreferrer">${ico("link",12)} Ссылка</a></div>`:""}</div>
+    </div>`}).join("")}</div>`:"";
+  const doneHtml=doneEvs.length?`<details style="margin-top:8px"><summary class="hint" style="cursor:pointer">Выполненные записи в календаре (${doneEvs.length})</summary><div class="tlist" style="margin-top:6px">${doneEvs.slice(0,8).map(e=>`<div><span class="num">${fdate(e.date)}</span><span style="text-decoration:line-through;color:var(--ink3);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.title||(EVK[e.kind]||EVK.other).t)}</span>${canWrite?`<button class="btn sm ghost" style="height:22px;padding:0 6px;font-size:11.5px" data-act="evdone" data-uid="${esc(e.id)}">Вернуть</button>`:""}</div>`).join("")}</div></details>`:"";
+  return`<div class="sec"><h4>Расписание и следующий шаг ${l.autoStep?'<span class="chip" style="text-transform:none;letter-spacing:0">авто</span>':""}${canWrite?`<button class="btn sm" data-act="calnew" data-lead="${l.id}">${ico("cal",13)} + В календарь</button>`:""}</h4>
+    ${evHtml}
+    <div class="grid2">
+      <div class="fld" style="grid-column:1/-1"><label for="d_ns">Следующий шаг</label><input id="d_ns" data-f="nextStep" value="${esc(l.nextStep)}" placeholder="Например: позвонить, написать в ТГ, отправить КП" ${dis}></div>
+      <div class="fld"><label for="d_nd">Дата</label><input id="d_nd" type="date" data-f="nextDate" value="${esc(l.nextDate)}" ${dis}></div>
+      <div class="fld"><label for="d_nt">Время</label><input id="d_nt" type="time" data-f="nextTime" value="${esc(l.nextTime||"")}" ${dis}></div>
+    </div>
+    ${canWrite?`<div class="qchips" style="margin-top:6px">${[["Сегодня",t],["Завтра",shiftDate(t,1)],["+2 раб. дня",shiftWork(t,2)],["След. пн",nextMonday(t)],["+1 нед.",shiftDate(t,7)]].map(([lbl,dv])=>`<button type="button" class="${l.nextDate===dv?"on":""}" data-act="dqdate" data-v="${dv}">${lbl}</button>`).join("")}${l.nextDate?`<button type="button" data-act="evdone" data-uid="lead:${l.id}" style="margin-left:auto;color:var(--hi);border-color:color-mix(in srgb,var(--hi) 40%,var(--line))">✓ Шаг выполнен</button>`:""}</div>`:""}
+    ${doneHtml}
+  </div>`;
+}
 function callSection(l,dis){
   const nt=l.callResult&&l.callTask?`<div class="hint" style="margin-top:8px">Итог: <b>${CRES[l.callResult]}</b>${l.callAt?" · "+ftime(l.callAt):""}${l.nextDate?` · дальше: ${esc(l.nextStep||"")} — ${fdate(l.nextDate)}${l.nextTime?" "+esc(l.nextTime):""}`:""}</div>`:"";
   return`<div class="sec"><h4>Итог звонка</h4>
-    <div class="row" style="gap:8px;flex-wrap:wrap"><div class="fld" style="flex:1;min-width:130px"><label for="d_cd">Дата (перезвон / встреча)</label><input type="date" id="d_cd" ${dis}></div><div class="fld" style="width:110px"><label for="d_ct">Время</label><input type="time" id="d_ct" ${dis}></div></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><div class="fld" style="flex:1;min-width:130px"><label for="d_cd">Дата (перезвон / встреча)</label><input type="date" id="d_cd" ${dis}></div><div class="fld" style="width:110px"><label for="d_ctime">Время</label><input type="time" id="d_ctime" ${dis}></div></div>
     <div class="tbtns" style="margin-top:8px">${Object.entries(CRES).map(([k,t])=>`<button class="btn sm${l.callResult===k&&l.callTask?" ok":""}" data-act="callres" data-v="${k}" ${dis}>${t}</button>`).join("")}</div>
-    <div class="hint" style="margin-top:6px">Кнопка сама отметит звонок, переведёт в «Прозвонили» и поставит напоминание: не дозвонились — завтра; просили перезвонить / встреча — на выбранную дату; КП — сегодня и дожать через 3 дня; отказ — вернуться через 3 месяца.</div>${nt}
+    <div class="hint" style="margin-top:6px">Кнопка сама отметит звонок, переведёт в «Прозвонили» и поставит напоминание в карточке: не дозвонились — завтра; просили перезвонить / встреча — на выбранную дату; КП — сегодня и дожать через 3 дня; отказ — вернуться через 3 месяца.</div>${nt}
   </div>`}
 async function setCallRes(id,v){
-  const l=L(id),now=Date.now(),note=($("#d_tn")?.value||"").trim(),cd=$("#d_cd")?.value||"",ct=$("#d_ct")?.value||"";
+  const l=L(id),now=Date.now(),note=($("#d_tn")?.value||"").trim(),cd=$("#d_cd")?.value||"",ct=$("#d_ctime")?.value||"";
   if((v==="callback"||v==="meeting")&&!cd){toast("Выберите дату в поле «Дата»");$("#d_cd")?.focus();return}
-  const o={touches:[...(l.touches||[]),{t:now,by:myId,ch:"call",note:CRES[v]+(note?" — "+note:"")}],lastTouchAt:now,callResult:v,callAt:now,callTask:true,autoStep:true,nextTime:"",log:[...(l.log||[]),{t:now,c:v,by:myId}]};
-  if(v==="refused"){stagePatch(l,"lost",o,now);o.resp="refused";o.respAt=now;o.nextDate=addDays(90);o.nextStep="Вернуться к лиду (отказ по звонку)"}
+  const o={touches:[...(l.touches||[]),{t:now,by:myId,ch:"call",note:CRES[v]+(note?" — "+note:"")}],lastTouchAt:now,callResult:v,callAt:now,callTask:true,autoStep:true,nextTime:"",nextKind:"call",log:[...(l.log||[]),{t:now,c:v,by:myId}]};
+  if(v==="refused"){stagePatch(l,"lost",o,now);o.resp="refused";o.respAt=now;o.nextDate=addDays(90);o.nextKind="remind";o.nextStep="Вернуться к лиду (отказ по звонку)"}
   else{stagePatch(l,"called",o,now);
-    if(v==="noanswer"){o.callTries=(l.callResult==="noanswer"?(l.callTries||1):0)+1;o.nextDate=addWorkDays(1);o.nextStep="Перезвонить (не дозвонились"+(o.callTries>1?", попытка "+(o.callTries+1):"")+")"}
-    if(v==="callback"){o.nextDate=cd;o.nextTime=ct;o.nextStep="Перезвонить (просили)"+(ct?" в "+ct:"")}
-    if(v==="interest"){o.resp="interest";o.respAt=now;o.nextDate=today();o.nextStep="Отправить КП, дожать "+fdate(addDays(3));o.kpFollow=addDays(3)}
-    if(v==="meeting"){o.resp="agreed";o.respAt=now;o.nextDate=cd;o.nextTime=ct;o.nextStep="Встреча/созвон "+fdate(cd)+(ct?" "+ct:"")}
+    if(v==="noanswer"){o.callTries=(l.callResult==="noanswer"?(l.callTries||1):0)+1;o.nextDate=addWorkDays(1);o.nextKind="call";o.nextStep="Перезвонить (не дозвонились"+(o.callTries>1?", попытка "+(o.callTries+1):"")+")"}
+    if(v==="callback"){o.nextDate=cd;o.nextTime=ct;o.nextKind="call";o.nextStep="Перезвонить (просили)"+(ct?" в "+ct:"")}
+    if(v==="interest"){o.resp="interest";o.respAt=now;o.nextDate=today();o.nextKind="kp";o.nextStep="Отправить КП, дожать "+fdate(addDays(3));o.kpFollow=addDays(3)}
+    if(v==="meeting"){o.resp="agreed";o.respAt=now;o.nextDate=cd;o.nextTime=ct;o.nextKind="meeting";o.nextStep="Встреча/созвон "+fdate(cd)+(ct?" "+ct:"")}
     if(v!=="noanswer")o.callTries=0}
   await upd(id,o);render();toast(`Звонок: ${CRES[v]} · напоминание ${fdate(o.nextDate)}${o.nextTime?" "+o.nextTime:""}`);
   if(v!=="noanswer")notify(id,"resp");
 }
 async function callDone(id){const l=L(id),o={callTask:false};
-  if(l.callResult==="interest"&&l.kpFollow&&/^Отправить КП/.test(l.nextStep||"")){o.callTask=true;o.nextDate=l.kpFollow;o.nextStep="Дожать по КП (отправили "+fdate(today())+")";o.kpFollow=""}
-  else{o.nextStep="";o.nextDate="";o.nextTime="";o.autoStep=false}
+  if(l.callResult==="interest"&&l.kpFollow&&/^Отправить КП/.test(l.nextStep||"")){o.callTask=true;o.nextDate=l.kpFollow;o.nextKind="kp";o.nextStep="Дожать по КП (отправили "+fdate(today())+")";o.kpFollow=""}
+  else{o.nextStep="";o.nextDate="";o.nextTime="";o.nextKind="";o.autoStep=false}
   await upd(id,o);render();toast(o.callTask?"КП отмечено, дожать "+fdate(o.nextDate):"Напоминание снято")}
 function addWorkDays(n){const d=new Date();while(n>0){d.setDate(d.getDate()+1);if(d.getDay()%6)n--}d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function notify(id,kind){try{sb?.functions?.invoke("notify",{body:{type:"event",leadId:id,kind}}).catch(()=>{})}catch(e){}}
@@ -944,8 +1548,8 @@ async function setResp(id,v){
   if(v==="refused")stagePatch(l,"lost",o,now);
   let rem="";
   const RM={noanswer:[2,"Повторный контакт: нет ответа"],interest:[2,"Дожать интерес: уточнить дату, формат, бюджет"],agreed:[1,"Согласовать детали и выставить КП"]}[v];
-  if(RM&&(!l.nextDate||l.nextDate<today()||l.autoStep)){o.nextDate=addWorkDays(RM[0]);o.nextStep=RM[1];o.autoStep=true;rem=` · напоминание на ${fdate(o.nextDate)}`}
-  if(v==="refused"&&l.autoStep){o.nextDate="";o.nextStep="";o.autoStep=false}
+  if(RM&&(!l.nextDate||l.nextDate<today()||l.autoStep)){o.nextDate=addWorkDays(RM[0]);o.nextStep=RM[1];o.nextTime="";o.nextKind="";o.autoStep=true;rem=` · напоминание на ${fdate(o.nextDate)}`}
+  if(v==="refused"&&l.autoStep){o.nextDate="";o.nextStep="";o.nextTime="";o.nextKind="";o.autoStep=false}
   await upd(id,o);render();toast(`Ответ: ${RESP[v]}${rem}`);
   if(v!=="noanswer")notify(id,"resp");
 }
@@ -1253,7 +1857,7 @@ async function saveNew(doScore){
   closeModal();view="queue";lsSet("view",view);render();openLead(id);
   if(doScore&&(text||company))score(id).catch(()=>toast("AI сейчас недоступен"));
 }
-function closeModal(){$("#modal").hidden=true;$("#modal").innerHTML="";imp=null}
+function closeModal(){$("#modal").hidden=true;$("#modal").innerHTML="";imp=null;evMod=null}
 
 /* import */
 function parseCSV(t){
@@ -1317,7 +1921,7 @@ async function doExport(){
   if(!dl)return;
   const cols=[["company","Компания"],["status","Статус"],["score","AI-оценка"],["signal","Сигнал"],["source","Источник"],["segment","Сегмент"],["city","Город"],["region","Регион"],["tz","Часовой пояс"],["site","Сайт"],["ogrn","ОГРН"],["name","ФИО"],["phone","Телефон"],["email","Email"],["contact","Роль"],["url","Ссылка"],["nextStep","Следующий шаг"],["nextDate","Дата шага"],["replyNote","Заметки"],["owner","Ответственный"],["resp","Ответ"],["lossReason","Причина отказа"],["touchN","Касаний"],["touchCh","Каналы связи"],["touchLast","Последний контакт"],["amount","Сумма"],["commExp","Вознагр. ожид."],["commOk","Вознагр. подтв."],["draft","Черновик"],["text","Текст публикации"]];
   const cell=v=>{v=String(v??"");return/[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  const lines=[cols.map(c=>c[1]).join(";")].concat(leads.map(l=>cols.map(([k])=>cell(k==="status"?ST[l.status]:k==="resp"?(RESP[l.resp]||""):k==="touchN"?touchesOf(l).length:k==="touchCh"?[...new Set(touchesOf(l).map(x=>CH[x.ch]))].join(", "):k==="touchLast"?(lastTouch(l)?new Date(lastTouch(l).t).toLocaleString("ru-RU"):""):k==="score"?l.ai?.score:k==="signal"?l.ai?.signal:l[k])).join(";")));
+  const lines=[cols.map(c=>c[1]).join(";")].concat(leads.map(l=>{const nx=leadNext(l);return cols.map(([k])=>cell(k==="status"?ST[l.status]:k==="resp"?(RESP[l.resp]||""):k==="nextStep"?(nx?nx.title:l.nextStep):k==="nextDate"?(nx?nx.date+(nx.time?" "+nx.time:""):l.nextDate):k==="touchN"?touchesOf(l).length:k==="touchCh"?[...new Set(touchesOf(l).map(x=>CH[x.ch]))].join(", "):k==="touchLast"?(lastTouch(l)?new Date(lastTouch(l).t).toLocaleString("ru-RU"):""):k==="score"?l.ai?.score:k==="signal"?l.ai?.signal:l[k])).join(";")}))
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"}));a.download=`project-lan-leads-${today()}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);toast("Файл скачан")
 }
 
@@ -1327,6 +1931,8 @@ document.addEventListener("click",async e=>{
   const v=e.target.closest("[data-view]");if(v){view=v.dataset.view;lsSet("view",view);banner="";renderRail();renderMain();window.scrollTo(0,0);return}
   const sc=e.target.closest("[data-scope]");if(sc){scope=sc.dataset.scope;lsSet("scope",scope);renderRail();renderMain();return}
   const bk=e.target.closest("[data-bkind]");if(bk){bKind=bk.dataset.bkind;lsSet("bkind",bKind);renderMain();return}
+  const cm=e.target.closest("[data-calmode]");if(cm){calMode=cm.dataset.calmode;if(calMode==="week"&&calSel)calCur=calSel;lsSet("calmode",calMode);renderMain();return}
+  const ck=e.target.closest("[data-calkind]");if(ck){calKind=calKind===ck.dataset.calkind?"":ck.dataset.calkind;renderMain();return}
   const qs=e.target.closest("[data-qseg]");if(qs){qSeg=qs.dataset.qseg;renderMain();return}
   const so=e.target.closest("th[data-sort]");if(so){const k=so.dataset.sort;sort=sort.k===k?{k,d:-sort.d}:{k,d:k==="company"?1:-1};renderMain();return}
   const b=e.target.closest("[data-act]");
@@ -1338,6 +1944,26 @@ document.addEventListener("click",async e=>{
       else if(act==="mclose")closeModal();
       else if(act==="save0")await saveNew(false);
       else if(act==="close"){openId=null;renderDrawer()}
+      else if(act==="openl"){if(id&&L(id))openLead(id)}
+      else if(act==="calnew"){if(canWrite&&db){const t=today();openEvModal({date:b.dataset.date||(calSel&&calSel>=t?calSel:t),time:b.dataset.time||"",kind:b.dataset.kind||"",leadId:b.dataset.lead||""})}}
+      else if(act==="calstep"){const d=+b.dataset.v,t=today();if(calMode==="week"){calCur=shiftDate(calCur||t,d*7);const w0=mondayOf(calCur),w1=shiftDate(w0,6);calSel=t>=w0&&t<=w1?t:w0}else{calCur=shiftMonth(calCur||t,d);calSel=calCur.slice(0,7)===t.slice(0,7)?t:calCur.slice(0,8)+"01"}renderMain()}
+      else if(act==="caltoday"){calCur=calSel=today();renderMain()}
+      else if(act==="caldone"){calDone=!calDone;renderMain()}
+      else if(act==="calnotif")await toggleCalNotif();
+      else if(act==="calics")dlIcs(allCalItems(),"project-lan-calendar-"+today()+".ics");
+      else if(act==="evopen")openEvModal({uid:b.dataset.uid});
+      else if(act==="evdone"){const cl=b.dataset.close;if(cl)closeModal();await toggleEvDone(b.dataset.uid)}
+      else if(act==="evmove")await moveEv(b.dataset.uid,b.dataset.date,b.dataset.time);
+      else if(act==="evdel")await delEv(b.dataset.id);
+      else if(act==="evkind"){if(evMod){syncEvForm();evMod.kind=b.dataset.v;renderEvModal(false)}}
+      else if(act==="evqdate"){if(evMod){syncEvForm();evMod.date=b.dataset.v;renderEvModal(false)}}
+      else if(act==="evqtime"){if(evMod){syncEvForm();const nv=b.dataset.v;if(!nv)evMod.endTime="";else if(evMod.time&&evMod.endTime&&evMod.endTime>evMod.time){const dur=(+evMod.endTime.slice(0,2)*60+ +evMod.endTime.slice(3))-(+evMod.time.slice(0,2)*60+ +evMod.time.slice(3)),s=+nv.slice(0,2)*60+ +nv.slice(3)+dur;evMod.endTime=s<1440?`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`:""}else if(evMod.endTime&&evMod.endTime<=nv)evMod.endTime="";evMod.time=nv;renderEvModal(false)}}
+      else if(act==="evpickl"){if(evMod){syncEvForm();const l=L(b.dataset.id);evMod.leadId=l?l.id:"";evMod.leadName=l?coName(l,""):"";evMod.lq="";renderEvModal(false)}}
+      else if(act==="evclearl"){if(evMod){syncEvForm();evMod.leadId="";evMod.leadName="";evMod.lq="";renderEvModal(false);setTimeout(()=>$("#ev_lq")?.focus(),0)}}
+      else if(act==="evopenlead"){const lid=b.dataset.id;closeModal();if(lid&&L(lid))openLead(lid)}
+      else if(act==="evaddmore"){const lid=b.dataset.id,dt=evMod?.date||calSel||today();openEvModal({leadId:lid,date:dt})}
+      else if(act==="evics1"){if(evMod){syncEvForm();const l=evMod.leadId?L(evMod.leadId):null;dlIcs([{uid:evMod.id||("lead:"+evMod.leadId),kind:evMod.kind,title:evMod.title||(EVK[evMod.kind]||EVK.other).t,date:evMod.date||today(),time:evMod.time||"",endTime:evMod.endTime||"",lead:l,leadName:l?coName(l,""):(evMod.leadName||""),link:evMod.link||"",note:evMod.note||"",repeat:evMod.repeat||""}],`project-lan-${evMod.date||today()}.ics`)}}
+      else if(act==="dqdate"){const l=L(id);if(l&&canWrite){const d=b.dataset.v;await upd(id,{nextDate:d,autoStep:false,...(!l.nextStep?{nextStep:$("#d_ns")?.value.trim()||""}:{})});render();toast("Дата шага: "+fdate(d))}}
       else if(act==="st"){const adv=b.closest("#drawer")&&["sent","rejected"].includes(b.dataset.v)&&view==="queue";const i=navList.indexOf(id),nx=adv?(navList[i+1]||navList[i-1]):null;await setSt(id,b.dataset.v);if(nx&&L(nx))openLead(nx)}
       else if(act==="nav")navGo(+b.dataset.v);
       else if(act==="qtouch"){const v=b.dataset.v;setTimeout(()=>toast("Связались? Отметить контакт",{label:"Отметить",fn:()=>addTouch(id,v)}),400)}
@@ -1386,26 +2012,37 @@ document.addEventListener("click",async e=>{
       else if(act==="aisetup"){b.disabled=true;b.textContent="Проверяю ключ…";try{const r=await aiCall("setup",{key:$("#ai_key").value.trim()});toast("AI-помощник подключён");await aiLoad()}catch(e){aiState={...aiState,msg:e.message,err:1};renderMain()}}
       else if(act==="aioff"){await aiCall("disconnect");await aiLoad();toast("AI-помощник отключён")}
       else if(act==="tgoff"){await tgCall("disconnect");tgState={connected:false};renderMain();toast("Telegram отключён")}
-      else if(act==="fudone"){const l=L(id),f=followPending(l),o={};if(f.pr)o.promise={...l.promise,done:true,doneAt:Date.now(),doneBy:myId};if(f.aw)o.tgAwait=0;if(f.ma)o.mailAwait=0;if(l.autoStep&&/^(Ответить|Отправить письмо)/.test(l.nextStep||"")){o.nextStep="";o.nextDate="";o.autoStep=false}await upd(id,o);render();toast("Напоминание снято")}
+      else if(act==="fudone"){const l=L(id),f=followPending(l),o={};if(f.pr)o.promise={...l.promise,done:true,doneAt:Date.now(),doneBy:myId};if(f.aw)o.tgAwait=0;if(f.ma)o.mailAwait=0;if(l.autoStep&&/^(Ответить|Отправить письмо)/.test(l.nextStep||"")){o.nextStep="";o.nextDate="";o.nextTime="";o.nextKind="";o.autoStep=false}await upd(id,o);render();toast("Напоминание снято")}
       else if(act==="takeme"){await upd(id,{owner:myId});render();toast("Лид закреплён за вами")}
       else if(act==="saveforce"){dupForce=true;await saveNew(false)}
       else if(act==="opendup"){closeModal();openLead(b.dataset.id)}
       else if(act==="cfg"){await cfgSet({...cfg,desc:$("#c_desc").value});toast("Описание сохранено")}
       else if(act==="export")await doExport();
       else if(act==="doimport")await doImport();
-      else if(act==="clearf"){F={st:"",src:"",seg:"",resp:"",ct:"",own:"",reach:""};renderMain()}
+      else if(act==="clearf"){F={st:"",src:"",seg:"",tz:"",resp:"",ct:"",own:"",reach:"",role:""};renderMain()}
       else if(act==="del"){const l=L(id);if(l){l._confirmDel=1;renderDrawer()}}
       else if(act==="delno"){const l=L(id);if(l){delete l._confirmDel;renderDrawer()}}
-      else if(act==="delyes"){await dbDel(id);openId=null;renderDrawer();toast("Лид удалён")}
+      else if(act==="delyes"){await dbDel(id);openId=null;render();toast("Лид удалён")}
     }catch(er){toast("Ошибка: "+(er.message||er.code))}
     return;
   }
-  const o=e.target.closest("[data-open]");if(o&&!e.target.closest("button"))openLead(o.dataset.open);
+  if($("#ev_dd")&&!e.target.closest(".lpick"))$("#ev_dd").hidden=true;
+  const o=e.target.closest("[data-open]");if(o&&!e.target.closest("button")){openLead(o.dataset.open);return}
+  const sl=e.target.closest("[data-slotdate]");if(sl&&canWrite&&db&&!e.target.closest(".wk-ev,.cal-pill")){calSel=sl.dataset.slotdate;openEvModal({date:sl.dataset.slotdate,time:sl.dataset.time||""});return}
+  const cs=e.target.closest("[data-calsel]");if(cs){const d=cs.dataset.calsel;calSel=d;if(calMode==="month"&&d.slice(0,7)!==calCur.slice(0,7))calCur=d;renderMain();return}
+});
+document.addEventListener("dblclick",e=>{
+  const cd=e.target.closest(".cal-day[data-calsel]");
+  if(cd&&canWrite&&db&&cd.dataset.calsel>=today()&&!e.target.closest(".cal-pill,button"))openEvModal({date:cd.dataset.calsel});
 });
 document.addEventListener("submit",async e=>{
-  if(e.target.id==="loginf"){e.preventDefault();$("#l_err").textContent="";const {error}=await sb.auth.signInWithPassword({email:$("#l_em").value.trim(),password:$("#l_pw").value});if(error)$("#l_err").textContent=error.message==="Invalid login credentials"?"Неверный email или пароль":error.message;return}if(e.target.id==="newf"){e.preventDefault();saveNew(!!sample).catch(er=>$("#m_err").textContent="Ошибка: "+(er.message||er.code))}});
+  if(e.target.id==="loginf"){e.preventDefault();$("#l_err").textContent="";const {error}=await sb.auth.signInWithPassword({email:$("#l_em").value.trim(),password:$("#l_pw").value});if(error)$("#l_err").textContent=error.message==="Invalid login credentials"?"Неверный email или пароль":error.message;return}
+  if(e.target.id==="newf"){e.preventDefault();saveNew(!!sample).catch(er=>$("#m_err").textContent="Ошибка: "+(er.message||er.code));return}
+  if(e.target.id==="evf"){e.preventDefault();saveEvModal().catch(er=>$("#ev_err").textContent="Ошибка: "+(er.message||er.code))}
+});
 document.addEventListener("change",async e=>{
   const el=e.target;
+  if(el.id==="ev_time"){updEvTz();return}
   if(el.dataset.filter){F[el.dataset.filter]=el.value;renderMain();return}
   if(el.dataset.qf){qF[el.dataset.qf]=el.value;renderMain();return}
   if(el.dataset.q){const id=$("#drawer").dataset.id,l=L(id);if(!l)return;const q={...(l.quote||{})};
@@ -1422,28 +2059,48 @@ document.addEventListener("change",async e=>{
   if(el.id==="d_sc"||el.id==="d_vd"){const id=$("#drawer").dataset.id,l=L(id);if(!l)return;const ai={...(l.ai||{}),signal:l.ai?.signal||"ручная оценка"};if(el.id==="d_sc"){if(el.value==="")return;ai.score=Math.max(0,Math.min(100,Math.round(+el.value)))}else ai.verdict=el.value;try{await upd(id,{ai,status:l.status==="new"?"scored":l.status})}catch(er){toast("Не сохранилось: "+(er.message||er.code))}return}
   const f=el.dataset.f,id=$("#drawer").dataset.id;
   if(!f||!id||!$("#drawer").contains(el))return;
-  try{const o={};o[f]=el.dataset.num!==undefined?(el.value===""?"":+el.value):el.value;if(f==="draft")o.draftEdited=true;if(f==="region"){o.tz=tzStr(el.value);o.geoSrc="вручную"}if(f==="city")o.geoSrc="вручную";if(f==="nextStep"||f==="nextDate")o.autoStep=false;if(f==="owner"&&el.value&&el.value!==myId)setTimeout(()=>notify(id,"assign"),300);await upd(id,o)}
+  try{const o={};o[f]=el.dataset.num!==undefined?(el.value===""?"":+el.value):el.value;if(f==="draft")o.draftEdited=true;if(f==="region"){o.tz=tzStr(el.value);o.geoSrc="вручную"}if(f==="city")o.geoSrc="вручную";if(f==="nextStep"||f==="nextDate"||f==="nextTime"||f==="nextKind")o.autoStep=false;if(f==="owner"&&el.value&&el.value!==myId)setTimeout(()=>notify(id,"assign"),300);await upd(id,o);if(f==="nextStep"||f==="nextDate"||f==="nextTime"||f==="nextKind"){renderRail();renderMain()}}
   catch(er){toast("Не сохранилось: "+(er.message||er.code))}
 });
 document.addEventListener("input",e=>{
   if(e.target.id==="q"){q=e.target.value.trim();renderMain()}
   if(e.target.id==="m_paste"){clearTimeout(previewImport.t);const v=e.target.value;previewImport.t=setTimeout(()=>v.trim()&&previewImport(v),250)}
+  if(e.target.id==="ev_lq"&&evMod){evMod.lq=e.target.value;const dd=$("#ev_dd");if(dd){const h=renderLeadDd(e.target.value);dd.innerHTML=h;dd.hidden=!h}}
+  if(e.target.id==="ev_time")updEvTz();
+});
+document.addEventListener("focusin",e=>{
+  if(e.target.id==="ev_lq"&&evMod){const dd=$("#ev_dd");if(dd){const h=renderLeadDd(e.target.value);dd.innerHTML=h;dd.hidden=!h}}
 });
 document.addEventListener("focusout",()=>setTimeout(()=>{const a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;if(pend.main)renderMain();if(pend.drawer)renderDrawer()},150));
 document.addEventListener("keydown",e=>{
   const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
   if(e.key==="Escape"){if(!$("#modal").hidden)closeModal();else if(openId){openId=null;renderDrawer()}return}
-  if(typing)return;
+  if(typing||e.metaKey||e.ctrlKey||e.altKey)return;
   if(e.key==="/"){e.preventDefault();$("#q").focus()}
   else if(openId&&$("#modal").hidden&&(e.key==="ArrowDown"||e.key==="j"||e.key==="о")){e.preventDefault();navGo(1)}
   else if(openId&&$("#modal").hidden&&(e.key==="ArrowUp"||e.key==="k"||e.key==="л")){e.preventDefault();navGo(-1)}
-  else if((e.key==="n"||e.key==="т")&&!e.metaKey&&!e.ctrlKey&&canWrite&&db){e.preventDefault();openNew()}
+  else if((e.key==="n"||e.key==="т")&&canWrite&&db&&$("#modal").hidden){e.preventDefault();openNew()}
+  else if((e.key==="c"||e.key==="с")&&canWrite&&db&&$("#modal").hidden){e.preventDefault();const t=today();openEvModal({leadId:openId||"",date:view==="tasks"&&calSel>=t?calSel:t})}
+  else if(view==="tasks"&&!openId&&$("#modal").hidden){
+    if(e.key==="t"||e.key==="е"){e.preventDefault();calCur=calSel=today();renderMain()}
+    else if(e.key==="ArrowLeft"&&calMode!=="list"){e.preventDefault();const t=today();if(calMode==="week"){calCur=shiftDate(calCur||t,-7);const w0=mondayOf(calCur);calSel=t>=w0&&t<=shiftDate(w0,6)?t:w0}else{calCur=shiftMonth(calCur||t,-1);calSel=calCur.slice(0,7)===t.slice(0,7)?t:calCur.slice(0,8)+"01"}renderMain()}
+    else if(e.key==="ArrowRight"&&calMode!=="list"){e.preventDefault();const t=today();if(calMode==="week"){calCur=shiftDate(calCur||t,7);const w0=mondayOf(calCur);calSel=t>=w0&&t<=shiftDate(w0,6)?t:w0}else{calCur=shiftMonth(calCur||t,1);calSel=calCur.slice(0,7)===t.slice(0,7)?t:calCur.slice(0,8)+"01"}renderMain()}
+    else if(e.key==="1"||e.key==="2"||e.key==="3"){calMode=["month","week","list"][+e.key-1];if(calMode==="week"&&calSel)calCur=calSel;lsSet("calmode",calMode);renderMain()}
+  }
 });
 /* drag & drop */
-document.addEventListener("dragstart",e=>{const c=e.target.closest?.("[data-drag]");if(!c)return;dragId=c.dataset.drag;c.classList.add("dragging");try{e.dataTransfer.setData("text/plain",dragId);e.dataTransfer.effectAllowed="move"}catch(_){}});
-document.addEventListener("dragend",e=>{e.target.closest?.("[data-drag]")?.classList.remove("dragging");document.querySelectorAll(".col.drop").forEach(c=>c.classList.remove("drop"))});
-document.addEventListener("dragover",e=>{const c=e.target.closest?.("[data-drop]");if(c&&dragId){e.preventDefault();document.querySelectorAll(".col.drop").forEach(x=>x!==c&&x.classList.remove("drop"));c.classList.add("drop")}});
-document.addEventListener("drop",async e=>{const c=e.target.closest?.("[data-drop]");if(!c||!dragId)return;e.preventDefault();c.classList.remove("drop");const id=dragId;dragId=null;try{await setSt(id,c.dataset.drop)}catch(er){toast("Ошибка: "+(er.message||er.code))}});
+document.addEventListener("dragstart",e=>{
+  const ev=e.target.closest?.("[data-caldrag]");
+  if(ev){calDrag=ev.dataset.caldrag;dragId=null;ev.classList.add("dragging");try{e.dataTransfer.setData("text/plain",calDrag);e.dataTransfer.effectAllowed="move"}catch(_){}return}
+  const c=e.target.closest?.("[data-drag]");if(!c)return;dragId=c.dataset.drag;calDrag=null;c.classList.add("dragging");try{e.dataTransfer.setData("text/plain",dragId);e.dataTransfer.effectAllowed="move"}catch(_){}});
+document.addEventListener("dragend",e=>{e.target.closest?.("[data-drag],[data-caldrag]")?.classList.remove("dragging");calDrag=null;dragId=null;document.querySelectorAll(".col.drop,.cal-day.drop,.wk-slot.drop,.wk-all-c.drop").forEach(c=>c.classList.remove("drop"))});
+document.addEventListener("dragover",e=>{
+  if(calDrag){const cd=e.target.closest?.("[data-caldrop]");if(cd){e.preventDefault();document.querySelectorAll(".cal-day.drop,.wk-slot.drop,.wk-all-c.drop").forEach(x=>x!==cd&&x.classList.remove("drop"));cd.classList.add("drop")}return}
+  const c=e.target.closest?.("[data-drop]");if(c&&dragId){e.preventDefault();document.querySelectorAll(".col.drop").forEach(x=>x!==c&&x.classList.remove("drop"));c.classList.add("drop")}});
+document.addEventListener("drop",async e=>{
+  if(calDrag){const cd=e.target.closest?.("[data-caldrop]");if(!cd)return;e.preventDefault();cd.classList.remove("drop");const uid=calDrag,dt=cd.dataset.caldrop,tm=cd.dataset.caltime;calDrag=null;
+    try{calSel=dt;await moveEv(uid,dt,tm)}catch(er){toast("Ошибка: "+(er.message||er.code))}return}
+  const c=e.target.closest?.("[data-drop]");if(!c||!dragId)return;e.preventDefault();c.classList.remove("drop");const id=dragId;dragId=null;try{await setSt(id,c.dataset.drop)}catch(er){toast("Ошибка: "+(er.message||er.code))}});
 document.addEventListener("dragover",e=>{if(e.target.closest?.("#dropz")&&e.dataTransfer?.types?.includes("Files")){e.preventDefault();$("#dropz").classList.add("on")}});
 document.addEventListener("drop",async e=>{if(e.target.closest?.("#dropz")&&e.dataTransfer.files[0]){e.preventDefault();$("#dropz").classList.remove("on");previewImport(await e.dataTransfer.files[0].text())}});
 
